@@ -1,11 +1,15 @@
 
 using Godot;
 using System;
+using System.Linq;
 
 
 public partial class Controller : Node2D
 {
 	private Window? DisplayWindow = null;
+	private AudioStreamPlayer? _micPlayer = null;
+
+	
 		private void OpenDisplayWindow()
 		{
 			// Close any existing window first
@@ -63,6 +67,23 @@ public partial class Controller : Node2D
 		_lastValidWidth = widthField.Text;
 		_lastValidHeight = heightField.Text;
 
+
+		// Populate AudioSelect OptionButton with available audio inputs
+		var audioSelect = GetNode<OptionButton>("UI/VBoxContainer/AudioSelect");
+		var inputDevices = AudioServer.GetInputDeviceList();
+		foreach (var device in inputDevices)
+		{
+			audioSelect.AddItem(device);
+		}
+
+		// Connect ToggleAudio button
+		if (HasNode("UI/VBoxContainer/ToggleAudio"))
+		{
+			var toggleAudioButton = GetNode<Button>("UI/VBoxContainer/ToggleAudio");
+			toggleAudioButton.Pressed += OnToggleAudio;
+		}
+	
+
 		// Connect ToggleDisplay button
 		var toggleDisplayButton = GetNode<Button>("UI/VBoxContainer/ToggleDisplay");
 		toggleDisplayButton.Pressed += OnToggleDisplay;
@@ -70,6 +91,43 @@ public partial class Controller : Node2D
 		// Initialize fields with first monitor's resolution
 		OnAutoButtonPressed();
 		
+	}
+
+	private void OnToggleAudio()
+	{
+		
+		// Set the input device if you want a specific one
+		var audioSelect = GetNode<OptionButton>("UI/VBoxContainer/AudioSelect");
+		var toggleAudioButton = GetNode<Button>("UI/VBoxContainer/ToggleAudio");
+		var inputDevices = AudioServer.GetInputDeviceList();
+		
+		if (_micPlayer == null)
+		{
+			
+			_micPlayer = new AudioStreamPlayer();
+			_micPlayer.Stream = new AudioStreamMicrophone();
+			_micPlayer.Bus = "Spectrum";
+			AddChild(_micPlayer);
+			if (audioSelect.Selected >= 0 && audioSelect.Selected < inputDevices.Length)
+			{
+				AudioServer.SetInputDevice(inputDevices[audioSelect.Selected]);
+			}
+			_micPlayer.Play();
+			toggleAudioButton.Text = "Audio Off";
+			var spectrum = GetNode<Spectrum>("UI/VBoxContainer/Spectrum");
+			spectrum.Visible = true;
+			spectrum.UpdateHboxWidth();
+		}
+		else
+		{
+			_micPlayer.Stop();
+			_micPlayer.QueueFree();
+			_micPlayer = null;
+			var spectrum = GetNode<Spectrum>("UI/VBoxContainer/Spectrum");
+			spectrum.Visible = false;
+			spectrum.DeleteBars();
+			toggleAudioButton.Text = "Audio On";
+		}
 	}
 
 	private void OnToggleDisplay()

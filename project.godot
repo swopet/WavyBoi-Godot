@@ -10,10 +10,16 @@ config_version=5
 
 [application]
 
-config/name="New Game Project"
+config/name="WavyBoi Godot"
 run/main_scene="uid://eup0qlj1akvg"
 config/features=PackedStringArray("4.5", "C#", "Forward Plus")
 config/icon="res://icon.svg"
+
+[audio]
+
+driver/driver="ASIO"
+driver/enable_input=true
+driver/mix_rate=48000
 
 [display]
 
