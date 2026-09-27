@@ -9,13 +9,15 @@
 [ext_resource type="PackedScene" uid="uid://brutdv30mu5hn" path="res://GraphNodes/Shaders/BwGradient/BwGradient.tscn" id="5_jx1wh"]
 [ext_resource type="PackedScene" uid="uid://bcr52w1fyfsyj" path="res://GraphNodes/Shaders/BwSpiral/BwSpiral.tscn" id="6_8ix78"]
 [ext_resource type="PackedScene" uid="uid://bqahxr2ivotug" path="res://GraphNodes/VisualBus/VisualBusNode.tscn" id="6_m1t5t"]
+[ext_resource type="PackedScene" path="res://GraphNodes/Primitives/Knob/KnobNode.tscn" id="7_knob"]
 
 [resource]
 script = ExtResource("1_2enai")
 Primitives = Dictionary[String, PackedScene]({
 "Float": ExtResource("1_1r6ht"),
 "Gradient": ExtResource("2_8ix78"),
-"Integer": ExtResource("3_fk33g")
+"Integer": ExtResource("3_fk33g"),
+"Knob": ExtResource("7_knob")
 })
 Shaders = Dictionary[String, PackedScene]({
 "BwGradient": ExtResource("5_jx1wh"),

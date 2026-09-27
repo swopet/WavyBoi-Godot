@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 
 /// <summary>
-/// Breadcrumb bar for stepping into and out of SubGraphs. Only the current graph is visible;
+/// Breadcrumb bar for stepping into and out of Modules. Only the current graph is visible;
 /// the others stay in the tree (hidden) so they keep processing and rendering.
 /// </summary>
 public partial class GraphNavigator : HBoxContainer
 {
 	public VisualsGraphEdit Root { get; private set; }
-	private readonly List<SubGraphNode> path = new();
+	private readonly List<ModuleNode> path = new();
 
 	public VisualsGraphEdit Current => path.Count == 0 ? Root : path[^1].InnerGraph;
 
@@ -21,10 +21,10 @@ public partial class GraphNavigator : HBoxContainer
 		ShowCurrent();
 	}
 
-	public void Enter(SubGraphNode subGraph)
+	public void Enter(ModuleNode module)
 	{
-		if (subGraph.GetParent() != Current) return;
-		path.Add(subGraph);
+		if (module.GetParent() != Current) return;
+		path.Add(module);
 		ShowCurrent();
 	}
 
@@ -37,7 +37,7 @@ public partial class GraphNavigator : HBoxContainer
 
 	private void ShowCurrent()
 	{
-		// Drop levels whose SubGraph node no longer exists
+		// Drop levels whose Module node no longer exists
 		int valid = path.FindIndex(node => !IsInstanceValid(node));
 		if (valid >= 0) path.RemoveRange(valid, path.Count - valid);
 
@@ -49,7 +49,7 @@ public partial class GraphNavigator : HBoxContainer
 		Refresh();
 	}
 
-	/// <summary>Rebuild the breadcrumb buttons (also called when a SubGraph is renamed).</summary>
+	/// <summary>Rebuild the breadcrumb buttons (also called when a Module is renamed).</summary>
 	public void Refresh()
 	{
 		foreach (var child in GetChildren())

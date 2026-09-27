@@ -39,20 +39,44 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 
 	// Node type keys, stored as metadata so graphs can be saved and rebuilt
 	public const string TypeMeta = "graph_type";
-	public const string SubGraphType = "SubGraph";
-	public const string InputsType = "SubGraphInputs";
-	public const string OutputsType = "SubGraphOutputs";
+	public const string ModuleType = "Module";
+	public const string InputsType = "ModuleInputs";
+	public const string OutputsType = "ModuleOutputs";
+	public const string OutputBusType = "OutputBus";
+	private static readonly System.Collections.Generic.Dictionary<string, string> LegacyTypeKeys = new()
+	{
+		["SubGraph"] = ModuleType, ["SubGraphInputs"] = InputsType, ["SubGraphOutputs"] = OutputsType,
+	};
 	private const string PrimitivePrefix = "Primitive/";
 	private const string ShaderPrefix = "Shader/";
 
 	// Only the main graph starts with the demo nodes
 	public bool SpawnDefaultNodes = true;
 	public GraphNavigator Navigator;
-	// Where SubGraph editors are added (beside the main graph, under the UI)
+
+	/// <summary>The main graph of the project this graph belongs to.</summary>
+	public VisualsGraphEdit ProjectRoot => Navigator?.Root ?? this;
+
+	/// <summary>Every module in the project, including ones nested inside other modules.</summary>
+	public IEnumerable<ModuleNode> AllModules()
+	{
+		static IEnumerable<ModuleNode> Walk(VisualsGraphEdit graph)
+		{
+			foreach (var module in graph.GetChildren().OfType<ModuleNode>())
+			{
+				yield return module;
+				if (module.InnerGraph != null)
+					foreach (var nested in Walk(module.InnerGraph)) yield return nested;
+			}
+		}
+		return Walk(ProjectRoot);
+	}
+	// Where Module editors are added (beside the main graph, under the UI)
 	public Node Host;
 
 	public void CreateVisualBus(){
 		visualBusNode = nodeList.VisualBus.Instantiate<VisualBusNode>();
+		visualBusNode.SetMeta(TypeMeta, OutputBusType); // saved with projects, never created from the menu
 		SpawnAtClosestAvailable(visualBusNode, new Vector2(0, 0));
 		
 		// Connect bus deletion signal
@@ -114,11 +138,13 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 	}
 
 	/// <summary>
-	/// Instantiate a node from its type key ("Primitive/Float", "Shader/BwGrid", "SubGraph", ...)
+	/// Instantiate a node from its type key ("Primitive/Float", "Shader/BwGrid", "Module", ...)
 	/// without adding it to the graph.
 	/// </summary>
 	public GraphNode CreateNode(string typeKey)
 	{
+		// Files saved before modules were renamed from "SubGraph"
+		if (LegacyTypeKeys.TryGetValue(typeKey, out var renamed)) typeKey = renamed;
 		GraphNode node = null;
 		if (typeKey.StartsWith(PrimitivePrefix)
 			&& nodeList.Primitives.TryGetValue(typeKey.Substring(PrimitivePrefix.Length), out var primitiveScene))
@@ -131,7 +157,7 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 			node = shaderScene.Instantiate<ShaderNode>();
 			node.Title = typeKey.Substring(ShaderPrefix.Length); // Set the node name to the shader name for easier identification
 		}
-		else if (typeKey == SubGraphType) node = new SubGraphNode();
+		else if (typeKey == ModuleType) node = new ModuleNode();
 		else if (typeKey == InputsType) node = new InputsNode();
 		else if (typeKey == OutputsType) node = new OutputsNode();
 
@@ -145,7 +171,7 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 	}
 
 	/// <summary>
-	/// Create the (hidden) graph editor for a SubGraph, set up like this one.
+	/// Create the (hidden) graph editor for a Module, set up like this one.
 	/// </summary>
 	public VisualsGraphEdit CreateChildGraph()
 	{
@@ -255,13 +281,13 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 		var shaders = AddSubmenu(menu, "Shaders");
 		foreach (var name in nodeList.Shaders.Keys) AddAction(shaders, name, () => AddShader(name, spawnPosition));
 
-		// Modules are SubGraphs
+		// Modules are Modules
 		var modules = AddSubmenu(menu, "Modules");
-		AddAction(modules, "New Empty Module", () => AddNode(SubGraphType, spawnPosition));
-		AddAction(modules, "Collapse Selection to Module   (Ctrl+G)", () => CollapseSelectionToSubGraph(),
+		AddAction(modules, "New Empty Module", () => AddNode(ModuleType, spawnPosition));
+		AddAction(modules, "Collapse Selection to Module   (Ctrl+G)", () => CollapseSelectionToModule(),
 			disabled: !GetCollapsibleSelection().Any());
 		modules.AddSeparator("Saved");
-		AddList(modules, GraphIO.List(GraphIO.SubGraphDir), name => LoadSubGraph(name, spawnPosition));
+		AddList(modules, GraphIO.List(GraphIO.ModuleDir), name => LoadModule(name, spawnPosition));
 
 		menu.IdPressed += id => actions[(int)id]();
 		menu.PopupHide += menu.QueueFree;
@@ -278,12 +304,12 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 	}
 
 	/// <summary>
-	/// Remove nodes and their connections. The output bus and a SubGraph's own Inputs/Outputs
-	/// can't be deleted. Deleting a SubGraph also frees everything inside it.
+	/// Remove nodes and their connections. The output bus and a Module's own Inputs/Outputs
+	/// can't be deleted. Deleting a Module also frees everything inside it.
 	/// </summary>
 	public void DeleteNodes(IEnumerable<GraphNode> nodes)
 	{
-		var toDelete = nodes.Where(node => node.HasMeta(TypeMeta) && node is not InputsNode && node is not OutputsNode).ToList();
+		var toDelete = nodes.Where(node => node.HasMeta(TypeMeta) && node is not InputsNode && node is not OutputsNode && node is not VisualBusNode).ToList();
 		if (toDelete.Count == 0) return;
 		var names = new HashSet<StringName>(toDelete.Select(node => node.Name));
 		foreach (var c in GetConnections().Where(c => names.Contains(c.From) || names.Contains(c.To)))
@@ -329,23 +355,23 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 		if (Engine.IsEditorHint() || !IsVisibleInTree()) return;
 		if (@event is InputEventKey { Pressed: true, Echo: false, Keycode: Key.G, CtrlPressed: true })
 		{
-			CollapseSelectionToSubGraph();
+			CollapseSelectionToModule();
 			GetViewport().SetInputAsHandled();
 		}
 	}
 
-	public SubGraphNode LoadSubGraph(string name, Vector2 position)
+	public ModuleNode LoadModule(string name, Vector2 position)
 	{
-		var data = GraphIO.Load(GraphIO.SubGraphDir, name);
+		var data = GraphIO.Load(GraphIO.ModuleDir, name);
 		if (data == null)
 		{
-			Dialogs.ShowMessage(this, "Load SubGraph", $"Couldn't read SubGraph '{name}'.");
+			Dialogs.ShowMessage(this, "Load Module", $"Couldn't read Module '{name}'.");
 			return null;
 		}
 		// Every load builds fresh nodes, so copies are independent
-		var subGraph = (SubGraphNode)AddNode(SubGraphType, position);
-		subGraph.Load(data);
-		return subGraph;
+		var module = (ModuleNode)AddNode(ModuleType, position);
+		module.Load(data);
+		return module;
 	}
 
 	public GradientNode LoadGradientPreset(string name, Vector2 position)
@@ -361,13 +387,13 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 		return gradient;
 	}
 
-	// ---- Collapsing a selection into a SubGraph
+	// ---- Collapsing a selection into a Module
 
 	private IEnumerable<GraphNode> GetCollapsibleSelection()
 	{
-		// The output bus has no type key, and a SubGraph's own Inputs/Outputs must stay put
+		// The output bus has no type key, and a Module's own Inputs/Outputs must stay put
 		return GetChildren().OfType<GraphNode>()
-			.Where(node => node.Selected && node.HasMeta(TypeMeta) && node is not InputsNode && node is not OutputsNode);
+			.Where(node => node.Selected && node.HasMeta(TypeMeta) && node is not InputsNode && node is not OutputsNode && node is not VisualBusNode);
 	}
 
 	private readonly record struct Connection(StringName From, int FromPort, StringName To, int ToPort);
@@ -392,7 +418,7 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 
 	/// <summary>
 	/// Unselected nodes that sit on a path leaving the selection and coming back into it.
-	/// Collapsing would make the SubGraph feed itself through them.
+	/// Collapsing would make the Module feed itself through them.
 	/// </summary>
 	private List<GraphNode> FindNodesBreakingInOut(HashSet<StringName> inSelection, List<Connection> connections)
 	{
@@ -437,10 +463,10 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 	}
 
 	/// <summary>
-	/// Move the selected nodes into a new SubGraph node. Connections crossing the edge of the
-	/// selection become the SubGraph's ports. Returns null if nothing was collapsed.
+	/// Move the selected nodes into a new Module node. Connections crossing the edge of the
+	/// selection become the Module's ports. Returns null if nothing was collapsed.
 	/// </summary>
-	public SubGraphNode CollapseSelectionToSubGraph()
+	public ModuleNode CollapseSelectionToModule()
 	{
 		var selected = GetCollapsibleSelection().ToList();
 		if (selected.Count == 0) return null;
@@ -452,9 +478,9 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 		{
 			foreach (var node in problems) FlashWarning(node);
 			string list = string.Join("\n", problems.Select(node => "  • " + DisplayName(node)));
-			Dialogs.ShowMessage(this, "Collapse to SubGraph",
+			Dialogs.ShowMessage(this, "Collapse to Module",
 				"Can't collapse: these nodes (highlighted in red) are fed by the selection and also feed back into it, " +
-				"so the SubGraph wouldn't have a clear inputs → outputs direction:\n\n" + list +
+				"so the Module wouldn't have a clear inputs → outputs direction:\n\n" + list +
 				"\n\nAdd them to the selection, or leave out the selected nodes on one side of them.");
 			return null;
 		}
@@ -470,12 +496,12 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 		{
 			var first = incoming.First(c => (c.From, c.FromPort) == source);
 			var target = GetNode<GraphNode>((string)first.To);
-			return new SubGraphPort { Type = (SlotType)target.GetInputPortType(first.ToPort), Label = PortLabel(target, first.ToPort, true) };
+			return new ModulePort { Type = (SlotType)target.GetInputPortType(first.ToPort), Label = PortLabel(target, first.ToPort, true) };
 		}).ToList();
 		var outputPorts = outputSources.Select(source =>
 		{
 			var node = GetNode<GraphNode>((string)source.From);
-			return new SubGraphPort { Type = (SlotType)node.GetOutputPortType(source.FromPort), Label = PortLabel(node, source.FromPort, false) };
+			return new ModulePort { Type = (SlotType)node.GetOutputPortType(source.FromPort), Label = PortLabel(node, source.FromPort, false) };
 		}).ToList();
 
 		foreach (var c in incoming.Concat(outgoing).Concat(inside))
@@ -483,14 +509,14 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 
 		Vector2 min = new Vector2(selected.Min(n => n.PositionOffset.X), selected.Min(n => n.PositionOffset.Y));
 		float width = selected.Max(n => n.PositionOffset.X + n.Size.X) - min.X;
-		var subGraph = (SubGraphNode)CreateNode(SubGraphType);
-		AddChild(subGraph, true);
-		subGraph.PositionOffset = min;
-		subGraph.SetResolution(outputResolution);
-		subGraph.SetPorts(inputPorts, outputPorts);
+		var module = (ModuleNode)CreateNode(ModuleType);
+		AddChild(module, true);
+		module.PositionOffset = min;
+		module.SetResolution(outputResolution);
+		module.SetPorts(inputPorts, outputPorts);
 
 		// Move the live nodes (keeping all their state) into the inner graph
-		var inner = subGraph.InnerGraph;
+		var inner = module.InnerGraph;
 		var names = new System.Collections.Generic.Dictionary<StringName, StringName>();
 		Vector2 innerOrigin = new Vector2(500, 40); // right of the Inputs node
 		foreach (var node in selected)
@@ -503,26 +529,26 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 			node.PositionOffset = position;
 			names[oldName] = node.Name;
 		}
-		subGraph.Outputs.PositionOffset = new Vector2(innerOrigin.X + width + 80, innerOrigin.Y);
+		module.Outputs.PositionOffset = new Vector2(innerOrigin.X + width + 80, innerOrigin.Y);
 
 		foreach (var c in inside)
 			inner.ConnectNode(names[c.From], c.FromPort, names[c.To], c.ToPort);
 		for (int i = 0; i < inputSources.Count; i++)
 		{
-			ConnectNode(inputSources[i].From, inputSources[i].FromPort, subGraph.Name, i);
+			ConnectNode(inputSources[i].From, inputSources[i].FromPort, module.Name, i);
 			foreach (var c in incoming.Where(c => (c.From, c.FromPort) == inputSources[i]))
-				inner.ConnectNode(subGraph.Inputs.Name, i, names[c.To], c.ToPort);
+				inner.ConnectNode(module.Inputs.Name, i, names[c.To], c.ToPort);
 		}
 		for (int i = 0; i < outputSources.Count; i++)
 		{
-			inner.ConnectNode(names[outputSources[i].From], outputSources[i].FromPort, subGraph.Outputs.Name, i);
+			inner.ConnectNode(names[outputSources[i].From], outputSources[i].FromPort, module.Outputs.Name, i);
 			foreach (var c in outgoing.Where(c => (c.From, c.FromPort) == outputSources[i]))
-				ConnectNode(subGraph.Name, i, c.To, c.ToPort);
+				ConnectNode(module.Name, i, c.To, c.ToPort);
 		}
 		inner.ReorderNodesByConnections();
 		ReorderNodesByConnections();
-		subGraph.Selected = true;
-		return subGraph;
+		module.Selected = true;
+		return module;
 	}
 
 	// ---- Saving and loading graph contents
@@ -561,9 +587,11 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 		foreach (Godot.Collections.Dictionary entry in (Godot.Collections.Array)graph["nodes"])
 		{
 			string type = (string)entry["type"];
+			if (LegacyTypeKeys.TryGetValue(type, out var renamed)) type = renamed;
 			GraphNode node;
-			// A SubGraph's Inputs/Outputs nodes already exist; just restore their position
+			// A Module's Inputs/Outputs nodes already exist; just restore their position
 			if (type == InputsType) node = GetChildren().OfType<InputsNode>().FirstOrDefault();
+			else if (type == OutputBusType) node = visualBusNode;
 			else if (type == OutputsType) node = GetChildren().OfType<OutputsNode>().FirstOrDefault();
 			else
 			{

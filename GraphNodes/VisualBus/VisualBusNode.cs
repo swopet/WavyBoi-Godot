@@ -12,7 +12,7 @@ struct BusData
 	public float CalculatedWeight;
 }
 
-public partial class VisualBusNode : GraphNode, IGraphNode, IResolutionDependent
+public partial class VisualBusNode : GraphNode, IGraphNode, IResolutionDependent, ISerializableNode
 {
 	[Signal]
 	public delegate void BusDeletedEventHandler(int index);
@@ -213,6 +213,36 @@ public partial class VisualBusNode : GraphNode, IGraphNode, IResolutionDependent
 		{
 			GetNode<LineEdit>(FadeSpeedLineEditPath).Text = fadeTime.ToString();
 		}
+	}
+
+	public Dictionary Save()
+	{
+		var weights = new Godot.Collections.Array();
+		foreach (var bus in buses) weights.Add(bus.TargetWeight);
+		return new Dictionary
+		{
+			["weights"] = weights,
+			["priority"] = priority_bus == null ? -1 : busIndices[priority_bus],
+			["fade_time"] = fadeTime,
+			["exclusive"] = exclusive,
+		};
+	}
+
+	public void Load(Dictionary data)
+	{
+		var weights = (Godot.Collections.Array)data["weights"];
+		int count = Math.Clamp(weights.Count, 1, 4);
+		while (buses.Length < count) AddBus();
+		while (buses.Length > count) DeleteBus(buses.Length - 1);
+		fadeTime = (float)data["fade_time"];
+		GetNode<LineEdit>(FadeSpeedLineEditPath).Text = fadeTime.ToString();
+		// Set the checkbox without its toggled handler, which would start fades
+		var exclusiveButton = GetNode<CheckButton>("ControlsHBox/ExclusiveButton");
+		exclusiveButton.SetPressedNoSignal((bool)data["exclusive"]);
+		exclusive = exclusiveButton.ButtonPressed;
+		for (int i = 0; i < count; i++) CutToWeight(i, (float)weights[i]);
+		int priority = (int)data["priority"];
+		priority_bus = priority >= 0 && priority < buses.Length ? buses[priority].Bus : null;
 	}
 
 	public void OnExclusiveButtonToggled(bool pressed)

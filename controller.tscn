@@ -22,6 +22,8 @@ ToggleAudioPath = NodePath("UI/GeneralControlsVBox/ToggleAudio")
 NormalizeAudioPath = NodePath("UI/GeneralControlsVBox/NormalizeAudio")
 SpectrumPath = NodePath("UI/GeneralControlsVBox/Spectrum")
 GraphEditPath = NodePath("VisualsGraphEdit")
+ProjectMenuPath = NodePath("UI/GeneralControlsVBox/ProjectMenu")
+AudioFileHBoxPath = NodePath("UI/GeneralControlsVBox/AudioFileHBox")
 
 [node name="VisualsGraphEdit" type="GraphEdit" parent="." unique_id=790826170]
 layout_mode = 1
@@ -54,6 +56,12 @@ layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
 
+[node name="ProjectMenu" type="MenuButton" parent="UI/GeneralControlsVBox" unique_id=1846203517]
+layout_mode = 2
+text = "Project: Untitled"
+flat = false
+alignment = 0
+
 [node name="ResolutionHBox" type="HBoxContainer" parent="UI/GeneralControlsVBox" unique_id=507263864]
 layout_mode = 2
 
@@ -80,6 +88,22 @@ text = "Open Display Window"
 
 [node name="AudioSelect" type="OptionButton" parent="UI/GeneralControlsVBox" unique_id=293665591]
 layout_mode = 2
+
+[node name="AudioFileHBox" type="HBoxContainer" parent="UI/GeneralControlsVBox" unique_id=1302954471]
+visible = false
+layout_mode = 2
+
+[node name="LoadAudioFile" type="Button" parent="UI/GeneralControlsVBox/AudioFileHBox" unique_id=1302954472]
+layout_mode = 2
+text = "Load File…"
+
+[node name="AudioFileLabel" type="Label" parent="UI/GeneralControlsVBox/AudioFileHBox" unique_id=1302954473]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "(no file)"
+clip_text = true
+text_overrun_behavior = 3
 
 [node name="ToggleAudio" type="Button" parent="UI/GeneralControlsVBox" unique_id=1565272907]
 layout_mode = 2

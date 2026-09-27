@@ -31,7 +31,7 @@ public interface IResolutionDependent
 }
 
 /// <summary>
-/// Implemented by graph nodes whose settings are saved with a SubGraph or preset.
+/// Implemented by graph nodes whose settings are saved with a Module or preset.
 /// Save returns JSON-safe data; Load is called after the node has entered the tree.
 /// </summary>
 public interface ISerializableNode

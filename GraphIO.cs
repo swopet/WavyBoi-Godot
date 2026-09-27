@@ -3,12 +3,13 @@ using Godot.Collections;
 using System.Linq;
 
 /// <summary>
-/// Reading and writing saved SubGraphs and gradient presets as JSON under user://.
+/// Reading and writing saved Modules and gradient presets as JSON under user://.
 /// </summary>
 public static class GraphIO
 {
-	public const string SubGraphDir = "user://subgraphs";
+	public const string ModuleDir = "user://modules";
 	public const string GradientDir = "user://gradients";
+	public const string ProjectDir = "user://projects";
 	private const int FormatVersion = 1;
 
 	// Same characters Godot's String.validate_filename replaces (not exposed to C#)
@@ -48,6 +49,20 @@ public static class GraphIO
 		var document = (Dictionary)parsed;
 		if (!document.ContainsKey("data") || document["data"].VariantType != Variant.Type.Dictionary) return null;
 		return (Dictionary)document["data"];
+	}
+
+	/// <summary>Move modules saved before the SubGraph → Module rename into the modules folder.</summary>
+	public static void MigrateLegacyFolders()
+	{
+		const string legacyModuleDir = "user://subgraphs";
+		if (!DirAccess.DirExistsAbsolute(legacyModuleDir)) return;
+		DirAccess.MakeDirRecursiveAbsolute(ModuleDir);
+		foreach (var file in DirAccess.GetFilesAt(legacyModuleDir))
+		{
+			string target = $"{ModuleDir}/{file}";
+			if (!FileAccess.FileExists(target)) DirAccess.RenameAbsolute($"{legacyModuleDir}/{file}", target);
+		}
+		if (DirAccess.GetFilesAt(legacyModuleDir).Length == 0) DirAccess.RemoveAbsolute(legacyModuleDir);
 	}
 
 	public static string[] List(string dir)

@@ -31,7 +31,7 @@ public static class Dialogs
 	/// <summary>
 	/// Ask for a name, then save getData() under it in dir, confirming before overwriting.
 	/// </summary>
-	public static void SaveNamed(Node context, string title, string dir, string defaultName, Func<Godot.Collections.Dictionary> getData)
+	public static void SaveNamed(Node context, string title, string dir, string defaultName, Func<Godot.Collections.Dictionary> getData, Action<string> onSaved = null)
 	{
 		var dialog = new ConfirmationDialog { Title = title, OkButtonText = "Save" };
 		var nameEdit = new LineEdit
@@ -55,6 +55,7 @@ public static class Dialogs
 			{
 				var error = GraphIO.Save(dir, name, getData());
 				if (error != Error.Ok) ShowMessage(context, title, $"Couldn't save '{name}': {error}");
+				else onSaved?.Invoke(name);
 			}
 			if (GraphIO.Exists(dir, name))
 				Confirm(context, title, $"'{name}' already exists. Overwrite it?", DoSave);

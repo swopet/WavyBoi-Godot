@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-public class SubGraphPort
+public class ModulePort
 {
 	public SlotType Type;
 	public string Label;
@@ -14,13 +14,13 @@ public class SubGraphPort
 /// A node that holds its own graph. Data arriving on input N comes out of the inner Inputs node's
 /// port N; data arriving on the inner Outputs node's port N leaves on output N.
 /// </summary>
-public partial class SubGraphNode : GraphNode, IGraphNode, IResolutionDependent, ISerializableNode
+public partial class ModuleNode : GraphNode, IGraphNode, IResolutionDependent, ISerializableNode
 {
 	public VisualsGraphEdit InnerGraph { get; private set; }
 	public InputsNode Inputs { get; private set; }
 	public OutputsNode Outputs { get; private set; }
-	public List<SubGraphPort> InputPorts { get; private set; } = new();
-	public List<SubGraphPort> OutputPorts { get; private set; } = new();
+	public List<ModulePort> InputPorts { get; private set; } = new();
+	public List<ModulePort> OutputPorts { get; private set; } = new();
 
 	private Variant[] inputValues = [];
 	private Variant[] outputValues = [];
@@ -28,19 +28,17 @@ public partial class SubGraphNode : GraphNode, IGraphNode, IResolutionDependent,
 
 	public override void _Ready()
 	{
-		if (string.IsNullOrEmpty(Title)) Title = "SubGraph";
+		if (string.IsNullOrEmpty(Title)) Title = "Module";
+		EnsureUniqueName();
 
 		var header = new HBoxContainer();
-		nameEdit = new LineEdit { Text = Title, CustomMinimumSize = new Vector2(140, 0) };
-		nameEdit.TextChanged += (text) =>
-		{
-			Title = text;
-			InnerGraph?.Navigator?.Refresh();
-		};
+		nameEdit = new LineEdit { Text = Title, CustomMinimumSize = new Vector2(140, 0), TooltipText = "Module name (unique in the project)" };
+		nameEdit.TextSubmitted += (text) => CommitNameEdit();
+		nameEdit.FocusExited += CommitNameEdit;
 		var openButton = new Button { Text = "Open" };
 		openButton.Pressed += () => InnerGraph.Navigator?.Enter(this);
 		var saveButton = new Button { Text = "Save" };
-		saveButton.Pressed += () => Dialogs.SaveNamed(this, "Save SubGraph", GraphIO.SubGraphDir, Title, Save);
+		saveButton.Pressed += () => Dialogs.SaveNamed(this, "Save Module", GraphIO.ModuleDir, Title, Save);
 		header.AddChild(nameEdit);
 		header.AddChild(openButton);
 		header.AddChild(saveButton);
@@ -51,16 +49,69 @@ public partial class SubGraphNode : GraphNode, IGraphNode, IResolutionDependent,
 		InnerGraph = parentGraph.CreateChildGraph();
 		Inputs = (InputsNode)InnerGraph.CreateNode(VisualsGraphEdit.InputsType);
 		Inputs.Name = "Inputs";
-		Inputs.SubGraph = this;
+		Inputs.Module = this;
 		InnerGraph.AddChild(Inputs);
 		// Start right of the control panel, which overlays the top-left of every graph
 		Inputs.PositionOffset = new Vector2(220, 40);
 		Outputs = (OutputsNode)InnerGraph.CreateNode(VisualsGraphEdit.OutputsType);
 		Outputs.Name = "Outputs";
-		Outputs.SubGraph = this;
+		Outputs.Module = this;
 		InnerGraph.AddChild(Outputs);
 		Outputs.PositionOffset = new Vector2(900, 40);
 		RebuildPorts();
+	}
+
+	private VisualsGraphEdit ParentGraph => GetParent() as VisualsGraphEdit;
+
+	private bool IsNameTaken(string name)
+	{
+		var graph = ParentGraph;
+		if (graph == null) return false;
+		return graph.AllModules().Any(other => other != this
+			&& string.Equals(other.Title, name, StringComparison.OrdinalIgnoreCase));
+	}
+
+	/// <summary>
+	/// Rename the module. Fails (returns false) if the name is empty or used by another module
+	/// anywhere in the project, including inside other modules.
+	/// </summary>
+	public bool TryRename(string name)
+	{
+		name = name.Trim();
+		if (name == "" || IsNameTaken(name)) return false;
+		Title = name;
+		if (nameEdit != null) nameEdit.Text = name;
+		ParentGraph?.Navigator?.Refresh();
+		return true;
+	}
+
+	/// <summary>Add " 2", " 3", ... if another module already has this name.</summary>
+	private void EnsureUniqueName()
+	{
+		string name = Title.Trim() == "" ? "Module" : Title.Trim();
+		if (IsNameTaken(name))
+		{
+			// Count up from an existing number ("Lead 2" -> "Lead 3", not "Lead 2 2")
+			string baseName = System.Text.RegularExpressions.Regex.Replace(name, @" \d+$", "");
+			int n = 2;
+			while (IsNameTaken($"{baseName} {n}")) n++;
+			name = $"{baseName} {n}";
+		}
+		Title = name;
+		if (nameEdit != null) nameEdit.Text = name;
+		ParentGraph?.Navigator?.Refresh();
+	}
+
+	private void CommitNameEdit()
+	{
+		string requested = nameEdit.Text.Trim();
+		if (requested == Title) return;
+		if (!TryRename(requested))
+		{
+			nameEdit.Text = Title;
+			if (requested != "")
+				Dialogs.ShowMessage(this, "Rename Module", $"A module named '{requested}' already exists in this project.");
+		}
 	}
 
 	public override void _Notification(int what)
@@ -71,7 +122,7 @@ public partial class SubGraphNode : GraphNode, IGraphNode, IResolutionDependent,
 		}
 	}
 
-	public void SetPorts(List<SubGraphPort> inputs, List<SubGraphPort> outputs)
+	public void SetPorts(List<ModulePort> inputs, List<ModulePort> outputs)
 	{
 		InputPorts = inputs;
 		OutputPorts = outputs;
@@ -142,7 +193,7 @@ public partial class SubGraphNode : GraphNode, IGraphNode, IResolutionDependent,
 		if (InnerGraph != null) InnerGraph.OutputResolution = resolution;
 	}
 
-	private static Godot.Collections.Array SavePorts(List<SubGraphPort> ports)
+	private static Godot.Collections.Array SavePorts(List<ModulePort> ports)
 	{
 		var array = new Godot.Collections.Array();
 		foreach (var port in ports)
@@ -150,15 +201,15 @@ public partial class SubGraphNode : GraphNode, IGraphNode, IResolutionDependent,
 		return array;
 	}
 
-	private static List<SubGraphPort> LoadPorts(Variant data)
+	private static List<ModulePort> LoadPorts(Variant data)
 	{
 		return ((Godot.Collections.Array)data)
 			.Select(v => (Dictionary)v)
-			.Select(d => new SubGraphPort { Type = (SlotType)(int)d["type"], Label = (string)d["label"] })
+			.Select(d => new ModulePort { Type = (SlotType)(int)d["type"], Label = (string)d["label"] })
 			.ToList();
 	}
 
-	/// <summary>The whole SubGraph, including any SubGraphs nested inside it.</summary>
+	/// <summary>The whole Module, including any Modules nested inside it.</summary>
 	public Dictionary Save()
 	{
 		return new Dictionary
@@ -173,7 +224,7 @@ public partial class SubGraphNode : GraphNode, IGraphNode, IResolutionDependent,
 	public void Load(Dictionary data)
 	{
 		Title = (string)data["name"];
-		nameEdit.Text = Title;
+		EnsureUniqueName(); // loading a saved module twice gives "Name" and "Name 2"
 		SetPorts(LoadPorts(data["inputs"]), LoadPorts(data["outputs"]));
 		InnerGraph.LoadGraph((Dictionary)data["graph"]);
 	}

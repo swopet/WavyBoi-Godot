@@ -2,32 +2,32 @@ using Godot;
 using System.Collections.Generic;
 
 /// <summary>
-/// Inside a SubGraph: exposes the SubGraph node's inputs as output ports.
+/// Inside a Module: exposes the Module node's inputs as output ports.
 /// </summary>
 public partial class InputsNode : GraphNode, IGraphNode
 {
-	public SubGraphNode SubGraph;
+	public ModuleNode Module;
 
 	public override void _Ready()
 	{
 		Title = "Inputs";
 	}
 
-	public void Rebuild(List<SubGraphPort> ports)
+	public void Rebuild(List<ModulePort> ports)
 	{
-		SubGraphPortRows.Rebuild(this, ports, rightSide: true);
+		ModulePortRows.Rebuild(this, ports, rightSide: true);
 	}
 
-	Variant IGraphNode.GetOutputData(int outputSlot) => SubGraph?.GetInputValue(outputSlot) ?? default;
+	Variant IGraphNode.GetOutputData(int outputSlot) => Module?.GetInputValue(outputSlot) ?? default;
 
 	void IGraphNode.SetInputData(int inputSlot, Variant data)
 	{
 	}
 }
 
-internal static class SubGraphPortRows
+internal static class ModulePortRows
 {
-	public static void Rebuild(GraphNode node, List<SubGraphPort> ports, bool rightSide)
+	public static void Rebuild(GraphNode node, List<ModulePort> ports, bool rightSide)
 	{
 		while (node.GetChildCount() > 0)
 		{
