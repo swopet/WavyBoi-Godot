@@ -2,12 +2,58 @@ using Godot;
 using Godot.Collections;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 
 public class ModulePort
 {
 	public SlotType Type;
 	public string Label;
+
+	// Numeric (Float/Integer) inputs only: allowed range, and the step knob values snap to
+	public float Min = 0.0f;
+	public float Max = 1.0f;
+	public float Step = 0.01f;
+
+	public bool IsNumeric => Type is SlotType.Float or SlotType.Integer;
+
+	public static ModulePort Create(SlotType type, string label) =>
+		new ModulePort { Type = type, Label = label, Step = type == SlotType.Integer ? 1.0f : 0.01f };
+
+	public static string Format(float value) => value.ToString("0.####", CultureInfo.InvariantCulture);
+
+	public string RangeText => $"[{Format(Min)} – {Format(Max)}]";
+
+	/// <summary>Change the range; false (and no change) if max isn't above min or step isn't positive.</summary>
+	public bool TrySetRange(float min, float max, float step)
+	{
+		if (Type == SlotType.Integer)
+		{
+			min = Mathf.Round(min);
+			max = Mathf.Round(max);
+			step = Mathf.Max(1.0f, Mathf.Round(step));
+		}
+		if (!float.IsFinite(min) || !float.IsFinite(max) || !float.IsFinite(step) || max <= min || step <= 0.0f) return false;
+		Min = min;
+		Max = max;
+		Step = step;
+		return true;
+	}
+
+	/// <summary>
+	/// A knob's 0-1 is mapped onto the range and snapped to the step; any other number is clamped.
+	/// Non-numeric data passes through.
+	/// </summary>
+	public Variant Apply(Variant data, bool fromKnob)
+	{
+		if (!IsNumeric || data.VariantType is not (Variant.Type.Float or Variant.Type.Int)) return data;
+		float value = (float)data;
+		float result = fromKnob
+			? Mathf.Clamp(Min + Mathf.Round(Mathf.Clamp(value, 0.0f, 1.0f) * (Max - Min) / Step) * Step, Min, Max)
+			: Mathf.Clamp(value, Min, Max);
+		// Explicit Variants: "cond ? int : float" would promote the int to a float
+		return Type == SlotType.Integer ? Variant.From(Mathf.RoundToInt(result)) : Variant.From(result);
+	}
 }
 
 /// <summary>
@@ -24,6 +70,10 @@ public partial class ModuleNode : GraphNode, IGraphNode, IResolutionDependent, I
 
 	private Variant[] inputValues = [];
 	private Variant[] outputValues = [];
+	private readonly List<Label> inputLabels = new();
+
+	// Nodes moved in by a collapse, to space clear of the Inputs node once it's laid out
+	public List<GraphNode> PendingClearOfInputs;
 	private LineEdit nameEdit;
 
 	public override void _Ready()
@@ -141,15 +191,14 @@ public partial class ModuleNode : GraphNode, IGraphNode, IResolutionDependent, I
 			child.QueueFree();
 		}
 		ClearAllSlots();
+		inputLabels.Clear();
 		int rows = Math.Max(InputPorts.Count, OutputPorts.Count);
 		for (int i = 0; i < rows; i++)
 		{
 			var row = new HBoxContainer();
-			row.AddChild(new Label
-			{
-				Text = i < InputPorts.Count ? InputPorts[i].Label : "",
-				SizeFlagsHorizontal = SizeFlags.ExpandFill,
-			});
+			var inputLabel = new Label { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+			row.AddChild(inputLabel);
+			if (i < InputPorts.Count) inputLabels.Add(inputLabel);
 			row.AddChild(new Label
 			{
 				Text = i < OutputPorts.Count ? OutputPorts[i].Label : "",
@@ -169,8 +218,33 @@ public partial class ModuleNode : GraphNode, IGraphNode, IResolutionDependent, I
 				SetSlotTypeRight(slot, (int)OutputPorts[i].Type);
 			}
 		}
+		UpdateInputLabels();
 		Inputs?.Rebuild(InputPorts);
 		Outputs?.Rebuild(OutputPorts);
+	}
+
+	private void UpdateInputLabels()
+	{
+		for (int i = 0; i < inputLabels.Count; i++)
+		{
+			var port = InputPorts[i];
+			inputLabels[i].Text = port.IsNumeric ? $"{port.Label} {port.RangeText}" : port.Label;
+		}
+	}
+
+	/// <summary>Set a numeric input's allowed range and step (from the Inputs node's fields).</summary>
+	public bool SetPortRange(int index, float min, float max, float step)
+	{
+		if (index < 0 || index >= InputPorts.Count || !InputPorts[index].IsNumeric) return false;
+		if (!InputPorts[index].TrySetRange(min, max, step)) return false;
+		UpdateInputLabels();
+		return true;
+	}
+
+	/// <summary>Store incoming data for an input, mapped (from a knob) or clamped to its range.</summary>
+	public void SetInput(int index, Variant data, bool fromKnob)
+	{
+		if (index >= 0 && index < inputValues.Length) inputValues[index] = InputPorts[index].Apply(data, fromKnob);
 	}
 
 	public Variant GetInputValue(int index) => index >= 0 && index < inputValues.Length ? inputValues[index] : default;
@@ -183,10 +257,7 @@ public partial class ModuleNode : GraphNode, IGraphNode, IResolutionDependent, I
 	Variant IGraphNode.GetOutputData(int outputSlot) =>
 		outputSlot >= 0 && outputSlot < outputValues.Length ? outputValues[outputSlot] : default;
 
-	void IGraphNode.SetInputData(int inputSlot, Variant data)
-	{
-		if (inputSlot >= 0 && inputSlot < inputValues.Length) inputValues[inputSlot] = data;
-	}
+	void IGraphNode.SetInputData(int inputSlot, Variant data) => SetInput(inputSlot, data, fromKnob: false);
 
 	public void SetResolution(Vector2I resolution)
 	{
@@ -197,7 +268,16 @@ public partial class ModuleNode : GraphNode, IGraphNode, IResolutionDependent, I
 	{
 		var array = new Godot.Collections.Array();
 		foreach (var port in ports)
-			array.Add(new Dictionary { ["type"] = (int)port.Type, ["label"] = port.Label });
+		{
+			var entry = new Dictionary { ["type"] = (int)port.Type, ["label"] = port.Label };
+			if (port.IsNumeric)
+			{
+				entry["min"] = port.Min;
+				entry["max"] = port.Max;
+				entry["step"] = port.Step;
+			}
+			array.Add(entry);
+		}
 		return array;
 	}
 
@@ -205,7 +285,14 @@ public partial class ModuleNode : GraphNode, IGraphNode, IResolutionDependent, I
 	{
 		return ((Godot.Collections.Array)data)
 			.Select(v => (Dictionary)v)
-			.Select(d => new ModulePort { Type = (SlotType)(int)d["type"], Label = (string)d["label"] })
+			.Select(d =>
+			{
+				var port = ModulePort.Create((SlotType)(int)d["type"], (string)d["label"]);
+				// Files from before ranges existed get the defaults
+				if (d.ContainsKey("min") && d.ContainsKey("max") && d.ContainsKey("step"))
+					port.TrySetRange((float)d["min"], (float)d["max"], (float)d["step"]);
+				return port;
+			})
 			.ToList();
 	}
 

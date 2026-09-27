@@ -406,6 +406,12 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 
 	private static string PortLabel(GraphNode node, int port, bool input)
 	{
+		// A module's own port label (its row text also shows the range)
+		if (node is ModuleNode module)
+		{
+			var ports = input ? module.InputPorts : module.OutputPorts;
+			if (port >= 0 && port < ports.Count) return $"{module.Title}: {ports[port].Label}";
+		}
 		string nodeLabel = string.IsNullOrEmpty(node.Title)
 			? ((string)node.GetMeta(TypeMeta, node.Name.ToString())).Split('/').Last()
 			: node.Title;
@@ -496,12 +502,19 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 		{
 			var first = incoming.First(c => (c.From, c.FromPort) == source);
 			var target = GetNode<GraphNode>((string)first.To);
-			return new ModulePort { Type = (SlotType)target.GetInputPortType(first.ToPort), Label = PortLabel(target, first.ToPort, true) };
+			var port = ModulePort.Create((SlotType)target.GetInputPortType(first.ToPort), PortLabel(target, first.ToPort, true));
+			// Feeding a module input: keep its range rather than clamping to the 0-1 default
+			if (target is ModuleNode targetModule && first.ToPort < targetModule.InputPorts.Count)
+			{
+				var inner = targetModule.InputPorts[first.ToPort];
+				port.TrySetRange(inner.Min, inner.Max, inner.Step);
+			}
+			return port;
 		}).ToList();
 		var outputPorts = outputSources.Select(source =>
 		{
 			var node = GetNode<GraphNode>((string)source.From);
-			return new ModulePort { Type = (SlotType)node.GetOutputPortType(source.FromPort), Label = PortLabel(node, source.FromPort, false) };
+			return ModulePort.Create((SlotType)node.GetOutputPortType(source.FromPort), PortLabel(node, source.FromPort, false));
 		}).ToList();
 
 		foreach (var c in incoming.Concat(outgoing).Concat(inside))
@@ -518,7 +531,7 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 		// Move the live nodes (keeping all their state) into the inner graph
 		var inner = module.InnerGraph;
 		var names = new System.Collections.Generic.Dictionary<StringName, StringName>();
-		Vector2 innerOrigin = new Vector2(500, 40); // right of the Inputs node
+		Vector2 innerOrigin = new Vector2(500, 40); // right of the Inputs node (adjusted once laid out)
 		foreach (var node in selected)
 		{
 			node.Selected = false;
@@ -547,8 +560,23 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 		}
 		inner.ReorderNodesByConnections();
 		ReorderNodesByConnections();
+		// The Inputs node's width (range fields, long labels) is only known once its graph is
+		// shown and laid out, so the navigator spaces the moved nodes on first entry
+		module.PendingClearOfInputs = selected.ToList();
 		module.Selected = true;
 		return module;
+	}
+
+	public static void KeepClearOfInputs(ModuleNode module, List<GraphNode> moved)
+	{
+		if (!IsInstanceValid(module) || !IsInstanceValid(module.Inputs)) return;
+		var nodes = moved.Where(node => IsInstanceValid(node) && node.GetParent() == module.InnerGraph).ToList();
+		if (nodes.Count == 0) return;
+		float inputsRight = module.Inputs.PositionOffset.X + module.Inputs.Size.X;
+		float shift = inputsRight + 60 - nodes.Min(node => node.PositionOffset.X);
+		if (shift <= 0) return;
+		foreach (var node in nodes) node.PositionOffset += new Vector2(shift, 0);
+		module.Outputs.PositionOffset += new Vector2(shift, 0);
 	}
 
 	// ---- Saving and loading graph contents
@@ -838,7 +866,9 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 
             // Get output from source and pass to destination
             Variant outputData = fromNode.GetOutputData(fromSlot);
-            toNode.SetInputData(toSlot, outputData);
+            // Module inputs map a knob's 0-1 onto their range, and clamp everything else
+            if (toNode is ModuleNode module) module.SetInput(toSlot, outputData, fromKnob: fromNode is KnobNode);
+            else toNode.SetInputData(toSlot, outputData);
         }
     }
 }

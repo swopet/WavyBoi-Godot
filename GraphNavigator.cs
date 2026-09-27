@@ -47,6 +47,15 @@ public partial class GraphNavigator : HBoxContainer
 			graph.Visible = graph == current;
 		}
 		Refresh();
+
+		// A freshly collapsed module: space its nodes once the now-visible graph is laid out
+		if (path.Count > 0 && path[^1].PendingClearOfInputs is { } moved)
+		{
+			var module = path[^1];
+			module.PendingClearOfInputs = null;
+			GetTree().Connect(SceneTree.SignalName.ProcessFrame,
+				Callable.From(() => VisualsGraphEdit.KeepClearOfInputs(module, moved)), (uint)ConnectFlags.OneShot);
+		}
 	}
 
 	/// <summary>Rebuild the breadcrumb buttons (also called when a Module is renamed).</summary>
