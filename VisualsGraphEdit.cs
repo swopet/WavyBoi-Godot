@@ -72,6 +72,7 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 		ConnectionRequest += OnConnectionRequest;
 		DisconnectionRequest += OnDisconnectionRequest;
 		PopupRequest += OnPopupRequest;
+		DeleteNodesRequest += OnDeleteNodesRequest;
 		if (!SpawnDefaultNodes) return;
 
 		for (int i = 0; i < 2; i++)
@@ -211,8 +212,18 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 
 	private Vector2 ToGraphPosition(Vector2 localPosition) => (localPosition + ScrollOffset) / Zoom;
 
+	private GraphNode GetNodeAt(Vector2 localPosition)
+	{
+		// Topmost first, using the full transform so zoom is respected
+		Vector2 point = GetGlobalTransformWithCanvas() * localPosition;
+		return GetChildren().OfType<GraphNode>().LastOrDefault(node => node.Visible
+			&& (node.GetGlobalTransformWithCanvas() * new Rect2(Vector2.Zero, node.Size)).HasPoint(point));
+	}
+
 	private void OnPopupRequest(Vector2 atPosition)
 	{
+		// Only on empty canvas: right-clicks on nodes bubble up to the graph too
+		if (GetNodeAt(atPosition) != null) return;
 		Vector2 spawnPosition = ToGraphPosition(atPosition);
 		var menu = new PopupMenu();
 		var actions = new List<System.Action>();
@@ -222,28 +233,71 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 			target.SetItemDisabled(target.ItemCount - 1, disabled);
 			actions.Add(action);
 		}
-		void AddSubmenu(string label, IEnumerable<string> items, System.Action<string> onPick)
+		PopupMenu AddSubmenu(PopupMenu parent, string label)
 		{
 			var submenu = new PopupMenu();
-			foreach (var item in items) AddAction(submenu, item, () => onPick(item));
-			if (submenu.ItemCount == 0) AddAction(submenu, "(none saved)", () => { }, disabled: true);
 			submenu.IdPressed += id => actions[(int)id]();
-			menu.AddSubmenuNodeItem(label, submenu);
+			parent.AddSubmenuNodeItem(label, submenu);
+			return submenu;
+		}
+		void AddList(PopupMenu target, IEnumerable<string> items, System.Action<string> onPick)
+		{
+			int before = target.ItemCount;
+			foreach (var item in items) AddAction(target, item, () => onPick(item));
+			if (target.ItemCount == before) AddAction(target, "(none saved)", () => { }, disabled: true);
 		}
 
-		AddSubmenu("Primitives", nodeList.Primitives.Keys, name => AddPrimitive(name, spawnPosition));
-		AddSubmenu("Shaders", nodeList.Shaders.Keys, name => AddShader(name, spawnPosition));
-		AddSubmenu("Saved SubGraphs", GraphIO.List(GraphIO.SubGraphDir), name => LoadSubGraph(name, spawnPosition));
-		AddSubmenu("Gradient Presets", GraphIO.List(GraphIO.GradientDir), name => LoadGradientPreset(name, spawnPosition));
-		AddAction(menu, "Empty SubGraph", () => AddNode(SubGraphType, spawnPosition));
-		menu.AddSeparator();
-		AddAction(menu, "Collapse Selection to SubGraph   (Ctrl+G)", () => CollapseSelectionToSubGraph(),
+		var primitives = AddSubmenu(menu, "Primitives");
+		foreach (var name in nodeList.Primitives.Keys) AddAction(primitives, name, () => AddPrimitive(name, spawnPosition));
+		primitives.AddSeparator();
+		AddList(AddSubmenu(primitives, "Gradient Presets"), GraphIO.List(GraphIO.GradientDir), name => LoadGradientPreset(name, spawnPosition));
+
+		var shaders = AddSubmenu(menu, "Shaders");
+		foreach (var name in nodeList.Shaders.Keys) AddAction(shaders, name, () => AddShader(name, spawnPosition));
+
+		// Modules are SubGraphs
+		var modules = AddSubmenu(menu, "Modules");
+		AddAction(modules, "New Empty Module", () => AddNode(SubGraphType, spawnPosition));
+		AddAction(modules, "Collapse Selection to Module   (Ctrl+G)", () => CollapseSelectionToSubGraph(),
 			disabled: !GetCollapsibleSelection().Any());
+		modules.AddSeparator("Saved");
+		AddList(modules, GraphIO.List(GraphIO.SubGraphDir), name => LoadSubGraph(name, spawnPosition));
+
 		menu.IdPressed += id => actions[(int)id]();
 		menu.PopupHide += menu.QueueFree;
 		AddChild(menu);
 		menu.Position = (Vector2I)(GetScreenPosition() + atPosition);
 		menu.Popup();
+	}
+
+	// ---- Deleting nodes (Delete key)
+
+	private void OnDeleteNodesRequest(Godot.Collections.Array<StringName> nodeNames)
+	{
+		DeleteNodes(nodeNames.Select(name => GetNodeOrNull<GraphNode>((string)name)).Where(node => node != null));
+	}
+
+	/// <summary>
+	/// Remove nodes and their connections. The output bus and a SubGraph's own Inputs/Outputs
+	/// can't be deleted. Deleting a SubGraph also frees everything inside it.
+	/// </summary>
+	public void DeleteNodes(IEnumerable<GraphNode> nodes)
+	{
+		var toDelete = nodes.Where(node => node.HasMeta(TypeMeta) && node is not InputsNode && node is not OutputsNode).ToList();
+		if (toDelete.Count == 0) return;
+		var names = new HashSet<StringName>(toDelete.Select(node => node.Name));
+		foreach (var c in GetConnections().Where(c => names.Contains(c.From) || names.Contains(c.To)))
+		{
+			DisconnectNode(c.From, c.FromPort, c.To, c.ToPort);
+			// Inputs left behind lose their data, same as a manual disconnect
+			if (!names.Contains(c.To)) (GetNode((string)c.To) as IGraphNode)?.SetInputData(c.ToPort, default);
+		}
+		foreach (var node in toDelete)
+		{
+			RemoveChild(node);
+			node.QueueFree();
+		}
+		ReorderNodesByConnections();
 	}
 
 	// GraphEdit toggles selection with Ctrl-click, but a Shift-click clears the rest of the
