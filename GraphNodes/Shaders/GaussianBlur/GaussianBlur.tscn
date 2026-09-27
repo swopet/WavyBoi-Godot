@@ -1,0 +1,29 @@
+[gd_scene format=3 uid="uid://cv01dwst3ducl"]
+
+[ext_resource type="PackedScene" uid="uid://cpk3wxyfoqd2x" path="res://ShaderNode.tscn" id="1_skl5d"]
+[ext_resource type="Script" uid="uid://c34rjn7ukktqd" path="res://GraphNodes/Shaders/GaussianBlur/GaussianBlur.cs" id="2_4gbwt"]
+[ext_resource type="Shader" uid="uid://dc8sqr23ddk7s" path="res://GraphNodes/Shaders/GaussianBlur/GaussianBlur.gdshader" id="2_euas2"]
+
+[sub_resource type="ViewportTexture" id="ViewportTexture_i3ima"]
+viewport_path = NodePath("PreviewPanel/TextureRect/SubViewport")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_qmtjy"]
+shader = ExtResource("2_euas2")
+shader_parameter/x_step = 0.0
+shader_parameter/y_step = 0.0
+shader_parameter/radius = 10.0
+shader_parameter/use_textureOriginal = false
+shader_parameter/useAlpha = false
+
+[node name="GaussianBlur" unique_id=421901113 instance=ExtResource("1_skl5d")]
+title = "res://GaussianBlur.gdshader"
+slot/0/right_enabled = true
+slot/0/right_type = 2
+script = ExtResource("2_4gbwt")
+Shader = ExtResource("2_euas2")
+
+[node name="TextureRect" parent="PreviewPanel" parent_id_path=PackedInt32Array(1591826366) index="0" unique_id=548394888]
+texture = SubResource("ViewportTexture_i3ima")
+
+[node name="ColorRect" parent="PreviewPanel/TextureRect/SubViewport" parent_id_path=PackedInt32Array(1429090857) index="0" unique_id=1479984965]
+material = SubResource("ShaderMaterial_qmtjy")

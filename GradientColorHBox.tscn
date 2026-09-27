@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://suuqp35rg1t1"]
+
+[ext_resource type="Script" uid="uid://cdrhndqe2avd1" path="res://GradientColorHBox.cs" id="1_ympca"]
+
+[node name="GradientColorHBox" type="HBoxContainer" unique_id=262809335 node_paths=PackedStringArray("colorPicker", "deleteButton", "upButton", "downButton")]
+script = ExtResource("1_ympca")
+colorPicker = NodePath("ColorPickerButton")
+deleteButton = NodePath("DeleteButton")
+upButton = NodePath("UpButton")
+downButton = NodePath("DownButton")
+
+[node name="ColorPickerButton" type="ColorPickerButton" parent="." unique_id=854110546]
+custom_minimum_size = Vector2(32, 32)
+layout_mode = 2
+
+[node name="DeleteButton" type="Button" parent="." unique_id=1202020776]
+layout_mode = 2
+text = "-"
+
+[node name="UpButton" type="Button" parent="." unique_id=1785077736]
+layout_mode = 2
+text = "↑"
+
+[node name="DownButton" type="Button" parent="." unique_id=1493243350]
+layout_mode = 2
+text = "↓"

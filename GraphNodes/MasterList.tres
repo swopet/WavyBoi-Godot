@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="NodeList" format=3 uid="uid://doamspmo4gty"]
+
+[ext_resource type="PackedScene" uid="uid://blttfhbkan8gy" path="res://GraphNodes/Primitives/Float/FloatNode.tscn" id="1_1r6ht"]
+[ext_resource type="Script" uid="uid://mypf6o30ugla" path="res://NodeList.cs" id="1_2enai"]
+[ext_resource type="PackedScene" uid="uid://bnhyk6kxl4ydx" path="res://GraphNodes/Primitives/Gradient/GradientNode.tscn" id="2_8ix78"]
+[ext_resource type="PackedScene" uid="uid://dmp8s0nxrwnm5" path="res://GraphNodes/Shaders/BwGrid/BwGrid.tscn" id="3_57jsp"]
+[ext_resource type="PackedScene" uid="uid://cyp68g83f5o3d" path="res://GraphNodes/Primitives/Integer/IntegerNode.tscn" id="3_fk33g"]
+[ext_resource type="PackedScene" uid="uid://cv01dwst3ducl" path="res://GraphNodes/Shaders/GaussianBlur/GaussianBlur.tscn" id="4_fk33g"]
+[ext_resource type="PackedScene" uid="uid://brutdv30mu5hn" path="res://GraphNodes/Shaders/BwGradient/BwGradient.tscn" id="5_jx1wh"]
+[ext_resource type="PackedScene" uid="uid://bcr52w1fyfsyj" path="res://GraphNodes/Shaders/BwSpiral/BwSpiral.tscn" id="6_8ix78"]
+[ext_resource type="PackedScene" uid="uid://bqahxr2ivotug" path="res://GraphNodes/VisualBus/VisualBusNode.tscn" id="6_m1t5t"]
+
+[resource]
+script = ExtResource("1_2enai")
+Primitives = Dictionary[String, PackedScene]({
+"Float": ExtResource("1_1r6ht"),
+"Gradient": ExtResource("2_8ix78"),
+"Integer": ExtResource("3_fk33g")
+})
+Shaders = Dictionary[String, PackedScene]({
+"BwGradient": ExtResource("5_jx1wh"),
+"BwGrid": ExtResource("3_57jsp"),
+"BwSpiral": ExtResource("6_8ix78"),
+"GaussianBlur": ExtResource("4_fk33g")
+})
+VisualBus = ExtResource("6_m1t5t")
+metadata/_custom_type_script = "uid://mypf6o30ugla"

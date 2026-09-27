@@ -1,0 +1,74 @@
+[gd_scene format=3 uid="uid://b2dnb1okw16h3"]
+
+[ext_resource type="Script" uid="uid://b5pvg5yhb3btb" path="res://VisualsGraphEdit.cs" id="1_k1j2r"]
+[ext_resource type="Script" uid="uid://m8y4td8sju81" path="res://GraphNodes/SubGraphNode/SubGraphNode.cs" id="1_peyos"]
+[ext_resource type="Script" uid="uid://ems1pricubvc" path="res://GraphNodes/SubGraphNode/InputsNode.cs" id="3_4rqxr"]
+[ext_resource type="Script" uid="uid://cy64oy0auapwp" path="res://GraphNodes/SubGraphNode/OutputsNode.cs" id="4_huhob"]
+
+[node name="SubGraphNode" type="GraphNode" unique_id=1917046525]
+title = "SubGraph"
+script = ExtResource("1_peyos")
+
+[node name="Window" type="Window" parent="." unique_id=753152052]
+oversampling_override = 1.0
+initial_position = 1
+size = Vector2i(960, 540)
+
+[node name="SubGraph" type="GraphEdit" parent="Window" unique_id=1130548277]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+scroll_offset = Vector2(-40, -40)
+minimap_size = Vector2(120, 80)
+show_menu = false
+script = ExtResource("1_k1j2r")
+
+[node name="InputsNode" type="GraphNode" parent="Window/SubGraph" unique_id=932368382]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 40.0
+offset_right = 123.0
+offset_bottom = 118.0
+mouse_filter = 1
+title = "Input Bus"
+slot/0/left_enabled = false
+slot/0/left_type = 0
+slot/0/left_color = Color(1, 1, 1, 1)
+slot/0/left_icon = null
+slot/0/right_enabled = true
+slot/0/right_type = 0
+slot/0/right_color = Color(1, 1, 1, 1)
+slot/0/right_icon = null
+slot/0/draw_stylebox = true
+script = ExtResource("3_4rqxr")
+
+[node name="NewInput" type="Label" parent="Window/SubGraph/InputsNode" unique_id=1815905646]
+layout_mode = 2
+text = "Add"
+
+[node name="OutputsNode" type="GraphNode" parent="Window/SubGraph" unique_id=24845766]
+layout_mode = 0
+offset_left = 805.0
+offset_top = 40.0
+offset_right = 918.0
+offset_bottom = 118.0
+mouse_filter = 1
+position_offset = Vector2(765, 0)
+title = "Output Bus"
+slot/0/left_enabled = true
+slot/0/left_type = 0
+slot/0/left_color = Color(1, 1, 1, 1)
+slot/0/left_icon = null
+slot/0/right_enabled = false
+slot/0/right_type = 0
+slot/0/right_color = Color(1, 1, 1, 1)
+slot/0/right_icon = null
+slot/0/draw_stylebox = true
+script = ExtResource("4_huhob")
+
+[node name="NewInput" type="Label" parent="Window/SubGraph/OutputsNode" unique_id=1724195722]
+layout_mode = 2
+size_flags_horizontal = 4
+text = "NewInput"

@@ -1,0 +1,53 @@
+[gd_scene format=3 uid="uid://cpk3wxyfoqd2x"]
+
+[ext_resource type="Script" uid="uid://bttj8dlwe55hs" path="res://ShaderNode.cs" id="1_rfpww"]
+
+[sub_resource type="ViewportTexture" id="ViewportTexture_rfpww"]
+viewport_path = NodePath("PreviewPanel/TextureRect/SubViewport")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_rfpww"]
+
+[node name="ShaderNode" type="GraphNode" unique_id=421901113]
+title = "No Shader"
+slot/0/left_enabled = false
+slot/0/left_type = 0
+slot/0/left_color = Color(1, 1, 1, 1)
+slot/0/left_icon = null
+slot/0/right_enabled = true
+slot/0/right_type = 2
+slot/0/right_color = Color(1, 1, 1, 1)
+slot/0/right_icon = null
+slot/0/draw_stylebox = true
+script = ExtResource("1_rfpww")
+PreviewPanelPath = NodePath("PreviewPanel")
+
+[node name="PreviewPanel" type="PanelContainer" parent="." unique_id=1591826366]
+custom_minimum_size = Vector2(240, 135)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+
+[node name="TextureRect" type="TextureRect" parent="PreviewPanel" unique_id=548394888]
+layout_mode = 2
+texture = SubResource("ViewportTexture_rfpww")
+expand_mode = 1
+
+[node name="SubViewport" type="SubViewport" parent="PreviewPanel/TextureRect" unique_id=1429090857]
+size = Vector2i(1920, 1080)
+
+[node name="ColorRect" type="ColorRect" parent="PreviewPanel/TextureRect/SubViewport" unique_id=1479984965]
+material = SubResource("ShaderMaterial_rfpww")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ShowHideButton" type="CheckButton" parent="PreviewPanel" unique_id=1607177646]
+layout_mode = 2
+size_flags_horizontal = 8
+size_flags_vertical = 0
+button_pressed = true
+text = "Show"
+
+[connection signal="toggled" from="PreviewPanel/ShowHideButton" to="." method="OnShowHideButtonToggled"]

@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://brutdv30mu5hn"]
+
+[ext_resource type="PackedScene" uid="uid://cpk3wxyfoqd2x" path="res://ShaderNode.tscn" id="1_q5k2j"]
+[ext_resource type="Script" uid="uid://j8l3p78s7md4" path="res://GraphNodes/Shaders/BwGradient/BwGradient.cs" id="2_24i7l"]
+[ext_resource type="Shader" uid="uid://dc4dih6tb142n" path="res://GraphNodes/Shaders/BwGradient/BWGradient.gdshader" id="3_ugnji"]
+
+[sub_resource type="ViewportTexture" id="ViewportTexture_5ojeu"]
+viewport_path = NodePath("PreviewPanel/TextureRect/SubViewport")
+
+[sub_resource type="Shader" id="Shader_24i7l"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_0q7fg"]
+render_priority = 0
+shader = SubResource("Shader_24i7l")
+
+[node name="BwGradient" unique_id=421901113 instance=ExtResource("1_q5k2j")]
+title = "::dd4ha"
+script = ExtResource("2_24i7l")
+Shader = ExtResource("3_ugnji")
+
+[node name="TextureRect" parent="PreviewPanel" parent_id_path=PackedInt32Array(1591826366) index="0" unique_id=548394888]
+texture_filter = 1
+texture = SubResource("ViewportTexture_5ojeu")
+
+[node name="ColorRect" parent="PreviewPanel/TextureRect/SubViewport" parent_id_path=PackedInt32Array(1429090857) index="0" unique_id=1479984965]
+material = SubResource("ShaderMaterial_0q7fg")

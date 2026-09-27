@@ -1,55 +1,95 @@
-[gd_scene load_steps=3 format=3 uid="uid://eup0qlj1akvg"]
+[gd_scene format=3 uid="uid://eup0qlj1akvg"]
 
 [ext_resource type="Script" uid="uid://cfnnvexd88hbb" path="res://Controller.cs" id="1_jldtq"]
+[ext_resource type="Script" uid="uid://b5pvg5yhb3btb" path="res://VisualsGraphEdit.cs" id="2_dd4ha"]
 [ext_resource type="PackedScene" uid="uid://bh6gs2jcbuvlr" path="res://Spectrum.tscn" id="2_n1geg"]
 
-[node name="Controller" type="Node2D"]
-script = ExtResource("1_jldtq")
-
-[node name="UI" type="Control" parent="."]
+[node name="Controller" type="Control" unique_id=1035166497]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("1_jldtq")
+WidthFieldPath = NodePath("UI/GeneralControlsVBox/ResolutionHBox/WidthField")
+HeightFieldPath = NodePath("UI/GeneralControlsVBox/ResolutionHBox/HeightField")
+MonitorSelectPath = NodePath("UI/GeneralControlsVBox/MonitorSelect")
+AutoButtonPath = NodePath("UI/GeneralControlsVBox/ResolutionHBox/AutoButton")
+ToggleDisplayPath = NodePath("UI/GeneralControlsVBox/ToggleDisplay")
+AudioSelectPath = NodePath("UI/GeneralControlsVBox/AudioSelect")
+ToggleAudioPath = NodePath("UI/GeneralControlsVBox/ToggleAudio")
+NormalizeAudioPath = NodePath("UI/GeneralControlsVBox/NormalizeAudio")
+SpectrumPath = NodePath("UI/GeneralControlsVBox/Spectrum")
+GraphEditPath = NodePath("VisualsGraphEdit")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="UI"]
+[node name="VisualsGraphEdit" type="GraphEdit" parent="." unique_id=790826170]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+grid_pattern = 1
+right_disconnects = true
+type_names = {
+0: "Integer",
+1: "Float",
+2: "Texture",
+3: "Color"
+}
+show_menu = false
+show_zoom_buttons = false
+show_grid_buttons = false
+script = ExtResource("2_dd4ha")
+
+[node name="UI" type="Control" parent="." unique_id=527431085]
+layout_mode = 1
+anchors_preset = 0
+
+[node name="GeneralControlsVBox" type="VBoxContainer" parent="UI" unique_id=592802328]
 layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
 
-[node name="ResolutionHBox" type="HBoxContainer" parent="UI/VBoxContainer"]
+[node name="ResolutionHBox" type="HBoxContainer" parent="UI/GeneralControlsVBox" unique_id=507263864]
 layout_mode = 2
 
-[node name="WidthField" type="LineEdit" parent="UI/VBoxContainer/ResolutionHBox"]
+[node name="WidthField" type="LineEdit" parent="UI/GeneralControlsVBox/ResolutionHBox" unique_id=2094859854]
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "Width"
 
-[node name="HeightField" type="LineEdit" parent="UI/VBoxContainer/ResolutionHBox"]
+[node name="HeightField" type="LineEdit" parent="UI/GeneralControlsVBox/ResolutionHBox" unique_id=1973385500]
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "Height"
 
-[node name="AutoButton" type="Button" parent="UI/VBoxContainer/ResolutionHBox"]
+[node name="AutoButton" type="Button" parent="UI/GeneralControlsVBox/ResolutionHBox" unique_id=132247669]
 layout_mode = 2
 text = "Auto"
 
-[node name="MonitorSelect" type="OptionButton" parent="UI/VBoxContainer"]
+[node name="MonitorSelect" type="OptionButton" parent="UI/GeneralControlsVBox" unique_id=1050991495]
 layout_mode = 2
 
-[node name="ToggleDisplay" type="Button" parent="UI/VBoxContainer"]
+[node name="ToggleDisplay" type="Button" parent="UI/GeneralControlsVBox" unique_id=1983935939]
 layout_mode = 2
 text = "Open Display"
 
-[node name="AudioSelect" type="OptionButton" parent="UI/VBoxContainer"]
+[node name="AudioSelect" type="OptionButton" parent="UI/GeneralControlsVBox" unique_id=293665591]
 layout_mode = 2
 
-[node name="ToggleAudio" type="Button" parent="UI/VBoxContainer"]
+[node name="ToggleAudio" type="Button" parent="UI/GeneralControlsVBox" unique_id=1565272907]
 layout_mode = 2
 text = "Audio On"
 
-[node name="Spectrum" parent="UI/VBoxContainer" instance=ExtResource("2_n1geg")]
+[node name="NormalizeAudio" type="Button" parent="UI/GeneralControlsVBox" unique_id=56469886]
+visible = false
+layout_mode = 2
+text = "Normalize Audio"
+
+[node name="Spectrum" parent="UI/GeneralControlsVBox" unique_id=1114552482 instance=ExtResource("2_n1geg")]
 visible = false
 layout_mode = 2

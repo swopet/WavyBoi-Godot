@@ -1,0 +1,46 @@
+[gd_scene format=3 uid="uid://c1e0ryto8mhi5"]
+
+[ext_resource type="Script" uid="uid://cmax8thklh11n" path="res://GraphNodes/VisualBus/VisualBus.cs" id="1_r2eld"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_n26wt"]
+shadow_size = 2
+shadow_color = Color(0, 0, 0, 0.5019608)
+shadow_offset = Vector2(0, 0)
+
+[node name="VisualBus" type="HBoxContainer" unique_id=1580284137]
+alignment = 2
+script = ExtResource("1_r2eld")
+DeleteButtonPath = NodePath("VBoxContainer/DeleteButton")
+FadeInButtonPath = NodePath("VBoxContainer/FadeInButton")
+FadeOutButtonPath = NodePath("VBoxContainer/FadeOutButton")
+SetButtonPath = NodePath("VBoxContainer/SetButton")
+
+[node name="PreviewTextureRect" type="TextureRect" parent="." unique_id=1031525654]
+custom_minimum_size = Vector2(240, 135)
+layout_mode = 2
+expand_mode = 1
+
+[node name="WeightLabel" type="Label" parent="PreviewTextureRect" unique_id=1338596401]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+label_settings = SubResource("LabelSettings_n26wt")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=728921645]
+layout_mode = 2
+
+[node name="SetButton" type="Button" parent="VBoxContainer" unique_id=1759031172]
+layout_mode = 2
+text = "Set"
+
+[node name="FadeInButton" type="Button" parent="VBoxContainer" unique_id=77141013]
+layout_mode = 2
+text = "Fade In"
+
+[node name="FadeOutButton" type="Button" parent="VBoxContainer" unique_id=1943260204]
+layout_mode = 2
+text = "Fade Out"
+
+[node name="DeleteButton" type="Button" parent="VBoxContainer" unique_id=816972088]
+layout_mode = 2
+text = "Delete"

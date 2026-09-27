@@ -1,0 +1,21 @@
+[gd_scene format=3 uid="uid://cyp68g83f5o3d"]
+
+[ext_resource type="Script" uid="uid://bdmqvpljwstqp" path="res://GraphNodes/Primitives/Integer/Integer.cs" id="1_6jlo6"]
+
+[node name="IntegerNode" type="GraphNode" unique_id=526328542 node_paths=PackedStringArray("lineEdit")]
+offset_right = 9.0
+offset_bottom = 55.0
+slot/0/left_enabled = false
+slot/0/left_type = 0
+slot/0/left_color = Color(1, 1, 1, 1)
+slot/0/left_icon = null
+slot/0/right_enabled = false
+slot/0/right_type = 0
+slot/0/right_color = Color(1, 1, 1, 1)
+slot/0/right_icon = null
+slot/0/draw_stylebox = true
+script = ExtResource("1_6jlo6")
+lineEdit = NodePath("LineEdit")
+
+[node name="LineEdit" type="LineEdit" parent="." unique_id=1704243624]
+layout_mode = 2

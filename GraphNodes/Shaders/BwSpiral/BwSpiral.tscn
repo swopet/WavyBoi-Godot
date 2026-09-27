@@ -1,0 +1,29 @@
+[gd_scene format=3 uid="uid://bcr52w1fyfsyj"]
+
+[ext_resource type="PackedScene" uid="uid://cpk3wxyfoqd2x" path="res://ShaderNode.tscn" id="1_wyvb1"]
+[ext_resource type="Script" uid="uid://neky4puw5rra" path="res://GraphNodes/Shaders/BwSpiral/BwSpiral.cs" id="2_ju0ol"]
+[ext_resource type="Shader" uid="uid://c0w13heucodq0" path="res://GraphNodes/Shaders/BwSpiral/BWSpiral.gdshader" id="3_jhshq"]
+
+[sub_resource type="ViewportTexture" id="ViewportTexture_e6a57"]
+viewport_path = NodePath("PreviewPanel/TextureRect/SubViewport")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_rvxg2"]
+shader = ExtResource("3_jhshq")
+shader_parameter/gap_size = 0.0
+shader_parameter/rotation_degrees = 0.0
+shader_parameter/spiral_count = 1.0
+shader_parameter/viewport_size = Vector2(0, 0)
+shader_parameter/use_texture0 = false
+shader_parameter/use_texture1 = false
+shader_parameter/fade_pixels = 2.0
+
+[node name="BWSpiral" unique_id=421901113 instance=ExtResource("1_wyvb1")]
+title = "res://BWGrid.gdshader"
+script = ExtResource("2_ju0ol")
+Shader = ExtResource("3_jhshq")
+
+[node name="TextureRect" parent="PreviewPanel" parent_id_path=PackedInt32Array(1591826366) index="0" unique_id=548394888]
+texture = SubResource("ViewportTexture_e6a57")
+
+[node name="ColorRect" parent="PreviewPanel/TextureRect/SubViewport" parent_id_path=PackedInt32Array(1429090857) index="0" unique_id=1479984965]
+material = SubResource("ShaderMaterial_rvxg2")

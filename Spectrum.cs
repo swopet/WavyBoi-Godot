@@ -9,6 +9,10 @@ public partial class Spectrum : PanelContainer
 	private const float MinFreq = 20.0f;
     private const float MaxFreq = 20000.0f; 
 	private int hboxWidthOnStartup = 0;
+
+    private float MaxMagnitude = 0.0001f;
+    private bool Normalizing = false;
+
 	public override void _Ready()
 	{
 		spectrum_index = AudioServer.GetBusIndex("Spectrum");
@@ -52,8 +56,27 @@ public partial class Spectrum : PanelContainer
         {
             return;
         }
+        if (Normalizing)
+        {
+            Vector2 mag = spectrum_analyzer.GetMagnitudeForFrequencyRange(MinFreq, MaxFreq, AudioEffectSpectrumAnalyzerInstance.MagnitudeMode.Max);
+            float magLength = mag.Length();
+            if (magLength > MaxMagnitude)
+                MaxMagnitude = magLength;
+        }
 		UpdateSpectrumBars();
 	}
+
+    public void NormalizeAudio()
+    {
+        Normalizing = true;
+        MaxMagnitude = 0.0001f; // reset max magnitude to find new max
+        Timer timer = new Timer();
+        timer.WaitTime = 5.0f; // normalize for 5 seconds
+        timer.OneShot = true;
+        timer.Timeout += () => Normalizing = false;
+        AddChild(timer);
+        timer.Start();
+    }
 
     private void UpdateSpectrumBars()
     {
@@ -85,11 +108,18 @@ public partial class Spectrum : PanelContainer
                         endFreq,
                         AudioEffectSpectrumAnalyzerInstance.MagnitudeMode.Average
                     );
-                    float barHeight = Mathf.Clamp(mag.Length() * 100f, 0, 100); // scale to 0-100 px
+                    float barHeight = Mathf.Clamp(mag.Length() * 100f / MaxMagnitude, 0, 100); // scale to 0-100 px
                     rect.Size = new Vector2(barWidth, barHeight);
                 }
 			}
         }
+    }
+
+    public float GetNormalizedMagnitudeForFrequencyRange(float startFreq, float endFreq)
+    {
+        if (spectrum_analyzer == null) return 0.0f;
+        Vector2 mag = spectrum_analyzer.GetMagnitudeForFrequencyRange(startFreq, endFreq, AudioEffectSpectrumAnalyzerInstance.MagnitudeMode.Average);
+        return Mathf.Clamp(mag.Length() / MaxMagnitude, 0, 1);
     }
 
     private void PopulateBars()

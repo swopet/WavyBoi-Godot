@@ -1,0 +1,88 @@
+[gd_scene format=3 uid="uid://bqahxr2ivotug"]
+
+[ext_resource type="Script" uid="uid://doam7vyjyyssd" path="res://GraphNodes/VisualBus/VisualBusNode.cs" id="1_5m4sn"]
+[ext_resource type="PackedScene" uid="uid://c1e0ryto8mhi5" path="res://GraphNodes/VisualBus/VisualBus.tscn" id="2_g7jni"]
+
+[sub_resource type="ViewportTexture" id="ViewportTexture_g7jni"]
+viewport_path = NodePath("PreviewTextureRect/PreviewSubViewport")
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_g7jni"]
+blend_mode = 1
+
+[node name="VisualBusNode" type="GraphNode" unique_id=1493881176]
+offset_right = 276.0
+offset_bottom = 190.0
+size_flags_horizontal = 4
+size_flags_vertical = 4
+title = "Output Bus"
+slot/0/left_enabled = false
+slot/0/left_type = 0
+slot/0/left_color = Color(1, 1, 1, 1)
+slot/0/left_icon = null
+slot/0/right_enabled = false
+slot/0/right_type = 0
+slot/0/right_color = Color(1, 1, 1, 1)
+slot/0/right_icon = null
+slot/0/draw_stylebox = true
+slot/1/left_enabled = false
+slot/1/left_type = 0
+slot/1/left_color = Color(1, 1, 1, 1)
+slot/1/left_icon = null
+slot/1/right_enabled = false
+slot/1/right_type = 0
+slot/1/right_color = Color(1, 1, 1, 1)
+slot/1/right_icon = null
+slot/1/draw_stylebox = true
+slot/2/left_enabled = false
+slot/2/left_type = 0
+slot/2/left_color = Color(1, 1, 1, 1)
+slot/2/left_icon = null
+slot/2/right_enabled = false
+slot/2/right_type = 0
+slot/2/right_color = Color(1, 1, 1, 1)
+slot/2/right_icon = null
+slot/2/draw_stylebox = true
+script = ExtResource("1_5m4sn")
+FadeSpeedLineEditPath = NodePath("ControlsHBox/FadeSpeedLineEdit")
+PreviewSubViewportPath = NodePath("PreviewTextureRect/PreviewSubViewport")
+
+[node name="ControlsHBox" type="HBoxContainer" parent="." unique_id=1922610525]
+layout_mode = 2
+
+[node name="AddBusButton" type="Button" parent="ControlsHBox" unique_id=1701749475]
+layout_mode = 2
+text = "Add Bus"
+
+[node name="FadeSpeedLabel" type="Label" parent="ControlsHBox" unique_id=1669360005]
+layout_mode = 2
+text = "Fade Speed (s)"
+
+[node name="FadeSpeedLineEdit" type="LineEdit" parent="ControlsHBox" unique_id=1513252542]
+layout_mode = 2
+
+[node name="ExclusiveButton" type="CheckButton" parent="ControlsHBox" unique_id=17597668]
+layout_mode = 2
+text = "Excl"
+
+[node name="VisualBus1" parent="." unique_id=1580284137 instance=ExtResource("2_g7jni")]
+layout_mode = 2
+
+[node name="PreviewTextureRect" type="TextureRect" parent="." unique_id=1632140884]
+custom_minimum_size = Vector2(240, 135)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+texture = SubResource("ViewportTexture_g7jni")
+expand_mode = 1
+
+[node name="PreviewSubViewport" type="SubViewport" parent="PreviewTextureRect" unique_id=1083775866]
+transparent_bg = true
+size = Vector2i(1920, 1080)
+
+[node name="Sprite2D" type="Sprite2D" parent="PreviewTextureRect/PreviewSubViewport" unique_id=809217529]
+material = SubResource("CanvasItemMaterial_g7jni")
+offset = Vector2(960, 540)
+
+[connection signal="pressed" from="ControlsHBox/AddBusButton" to="." method="AddBus"]
+[connection signal="text_submitted" from="ControlsHBox/FadeSpeedLineEdit" to="." method="OnFadeSpeedLineEditTextSubmitted"]
+[connection signal="toggled" from="ControlsHBox/ExclusiveButton" to="." method="OnExclusiveButtonToggled"]

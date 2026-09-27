@@ -1,0 +1,68 @@
+[gd_scene format=3 uid="uid://bnhyk6kxl4ydx"]
+
+[ext_resource type="PackedScene" uid="uid://suuqp35rg1t1" path="res://GradientColorHBox.tscn" id="1_07ejf"]
+[ext_resource type="Script" uid="uid://b0c02h3ye5d88" path="res://GraphNodes/Primitives/Gradient/GradientNode.cs" id="1_d1vub"]
+
+[sub_resource type="Gradient" id="Gradient_30mdf"]
+interpolation_mode = 2
+interpolation_color_space = 2
+offsets = PackedFloat32Array(0)
+colors = PackedColorArray(0.41733834, 0.24808317, 0.19658023, 1)
+metadata/_snap_enabled = true
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_07ejf"]
+gradient = SubResource("Gradient_30mdf")
+width = 256
+height = 1
+
+[node name="GradientNode" type="GraphNode" unique_id=116232811]
+offset_right = 9.0
+offset_bottom = 55.0
+title = "Gradient"
+slot/0/left_enabled = false
+slot/0/left_type = 0
+slot/0/left_color = Color(1, 1, 1, 1)
+slot/0/left_icon = null
+slot/0/right_enabled = false
+slot/0/right_type = 0
+slot/0/right_color = Color(1, 1, 1, 1)
+slot/0/right_icon = null
+slot/0/draw_stylebox = true
+slot/1/left_enabled = false
+slot/1/left_type = 0
+slot/1/left_color = Color(1, 1, 1, 1)
+slot/1/left_icon = null
+slot/1/right_enabled = false
+slot/1/right_type = 0
+slot/1/right_color = Color(1, 1, 1, 1)
+slot/1/right_icon = null
+slot/1/draw_stylebox = true
+script = ExtResource("1_d1vub")
+gradient = SubResource("Gradient_30mdf")
+gradientTexture = SubResource("GradientTexture2D_07ejf")
+
+[node name="GradientPreviewHBox" type="HBoxContainer" parent="." unique_id=590512370]
+layout_mode = 2
+
+[node name="TextureRect" type="TextureRect" parent="GradientPreviewHBox" unique_id=740589558]
+texture_filter = 1
+custom_minimum_size = Vector2(80, 16)
+layout_mode = 2
+texture = SubResource("GradientTexture2D_07ejf")
+expand_mode = 1
+
+[node name="LineEdit" type="LineEdit" parent="GradientPreviewHBox" unique_id=289435398]
+layout_mode = 2
+text = "256"
+alignment = 1
+max_length = 3
+
+[node name="Button" type="Button" parent="GradientPreviewHBox" unique_id=779630160]
+layout_mode = 2
+text = "+"
+
+[node name="GradientColorHBox1" parent="." unique_id=262809335 instance=ExtResource("1_07ejf")]
+layout_mode = 2
+
+[connection signal="text_submitted" from="GradientPreviewHBox/LineEdit" to="." method="OnLineEditTextSubmitted"]
+[connection signal="pressed" from="GradientPreviewHBox/Button" to="." method="AddColor"]

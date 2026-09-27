@@ -1,0 +1,21 @@
+[gd_scene format=3 uid="uid://blttfhbkan8gy"]
+
+[ext_resource type="Script" uid="uid://c2p466tqtvajv" path="res://GraphNodes/Primitives/Float/FloatNode.cs" id="1_clful"]
+
+[node name="FloatNode" type="GraphNode" unique_id=526328542 node_paths=PackedStringArray("lineEdit")]
+offset_right = 9.0
+offset_bottom = 55.0
+slot/0/left_enabled = false
+slot/0/left_type = 0
+slot/0/left_color = Color(1, 1, 1, 1)
+slot/0/left_icon = null
+slot/0/right_enabled = false
+slot/0/right_type = 0
+slot/0/right_color = Color(1, 1, 1, 1)
+slot/0/right_icon = null
+slot/0/draw_stylebox = true
+script = ExtResource("1_clful")
+lineEdit = NodePath("LineEdit")
+
+[node name="LineEdit" type="LineEdit" parent="." unique_id=1704243624]
+layout_mode = 2
