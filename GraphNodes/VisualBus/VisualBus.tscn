@@ -19,6 +19,7 @@ SetButtonPath = NodePath("VBoxContainer/SetButton")
 custom_minimum_size = Vector2(240, 135)
 layout_mode = 2
 expand_mode = 1
+stretch_mode = 5
 
 [node name="WeightLabel" type="Label" parent="PreviewTextureRect" unique_id=1338596401]
 layout_mode = 0

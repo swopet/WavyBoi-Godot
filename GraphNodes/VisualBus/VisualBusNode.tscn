@@ -74,6 +74,7 @@ size_flags_horizontal = 4
 size_flags_vertical = 4
 texture = SubResource("ViewportTexture_g7jni")
 expand_mode = 1
+stretch_mode = 5
 
 [node name="PreviewSubViewport" type="SubViewport" parent="PreviewTextureRect" unique_id=1083775866]
 transparent_bg = true

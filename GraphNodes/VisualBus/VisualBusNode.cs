@@ -64,6 +64,14 @@ public partial class VisualBusNode : GraphNode, IGraphNode, IResolutionDependent
 		fadeTimes[index] = 0.0f;
 	}
 
+	private void CutToWeight(int index, float weight)
+	{
+		buses[index].TargetWeight = weight;
+		buses[index].CurrentWeight = weight;
+		buses[index].LastSetWeight = weight;
+		fadeTimes[index] = 0.0f;
+	}
+
 	private void ConnectBusSignals(VisualBus bus)
 	{
 		bus.GetNode<Button>(bus.DeleteButtonPath).Pressed += () => OnBusDeleteButtonPressed(bus);
@@ -107,15 +115,16 @@ public partial class VisualBusNode : GraphNode, IGraphNode, IResolutionDependent
 	private void OnBusSetButtonPressed(VisualBus bus)
 	{
 		
+		// Set is a hard cut: no fade
 		priority_bus = bus;
-		SetTargetWeight(busIndices[bus], 1.0f);
+		CutToWeight(busIndices[bus], 1.0f);
 		if (exclusive)
 		{
 			for (int i = 0; i < buses.Length; i++)
 			{
 				if (priority_bus != buses[i].Bus)
 				{
-					SetTargetWeight(i, 0.0f);
+					CutToWeight(i, 0.0f);
 				}
 			}
 		}
