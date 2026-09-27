@@ -509,6 +509,15 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 				var inner = targetModule.InputPorts[first.ToPort];
 				port.TrySetRange(inner.Min, inner.Max, inner.Step);
 			}
+			// Otherwise widen the range to fit the value flowing in now, so collapsing changes nothing.
+			// Knobs output 0-1 already, which the default range maps one-to-one.
+			else if (port.IsNumeric && GetNode(source.From.ToString()) is not KnobNode)
+			{
+				Variant current = (GetNode(source.From.ToString()) as IGraphNode)?.GetOutputData(source.FromPort) ?? default;
+				if (current.VariantType is not (Variant.Type.Float or Variant.Type.Int) && target is ShaderNode shader)
+					current = shader.GetParameterValue(first.ToPort); // nothing flowing yet: use the parameter's value
+				if (current.VariantType is Variant.Type.Float or Variant.Type.Int) port.FitTo((float)current);
+			}
 			return port;
 		}).ToList();
 		var outputPorts = outputSources.Select(source =>

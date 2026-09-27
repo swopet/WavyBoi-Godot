@@ -41,6 +41,26 @@ public class ModulePort
 	}
 
 	/// <summary>
+	/// Widen the range (to 1, 2 or 5 × a power of ten) so a value outside it fits:
+	/// 77 -> 0-100, -30 -> -50-1. Values already inside are left alone.
+	/// </summary>
+	public void FitTo(float value)
+	{
+		if (!IsNumeric || !float.IsFinite(value) || (value >= Min && value <= Max)) return;
+		static float RoundBound(float x)
+		{
+			if (x <= 1.0f) return 1.0f;
+			float power = Mathf.Pow(10.0f, Mathf.Floor(Mathf.Log(x) / Mathf.Log(10.0f)));
+			foreach (float m in new[] { 1.0f, 2.0f, 5.0f, 10.0f })
+				if (m * power >= x) return m * power;
+			return 10.0f * power;
+		}
+		float min = value < Min ? -RoundBound(-value) : Min;
+		float max = value > Max ? RoundBound(value) : Max;
+		TrySetRange(min, max, Step);
+	}
+
+	/// <summary>
 	/// A knob's 0-1 is mapped onto the range and snapped to the step; any other number is clamped.
 	/// Non-numeric data passes through.
 	/// </summary>

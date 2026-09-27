@@ -109,6 +109,10 @@ public partial class ShaderNode : GraphNode, IGraphNode, IResolutionDependent, I
 		}
 	}
 
+	/// <summary>Current value of the parameter on an input port (Nil if unset).</summary>
+	public Variant GetParameterValue(int inputPort) =>
+		Parameters != null && inputPort >= 0 && inputPort < Parameters.Length ? Parameters[inputPort].Value : default;
+
 	public Parameter[] GetParameters()
 	{
 		return Parameters;
