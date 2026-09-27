@@ -11,6 +11,7 @@ public partial class FloatNode : GraphNode , IGraphNode
         SetSlotEnabledRight(0, true);
         SetSlotEnabledLeft(0, true);
         SetSlotTypeRight(0, (int)SlotType.Float);
+        SetSlotTypeLeft(0, (int)SlotType.Float);
         lineEdit.Text = value.ToString();
         lineEdit.TextSubmitted += (string newText) => 
         {
@@ -36,10 +37,11 @@ public partial class FloatNode : GraphNode , IGraphNode
 
     void IGraphNode.SetInputData(int inputSlot, Variant data)
     {
-        if (inputSlot == 0)
-        {
-            value = (float)data;
-            lineEdit.Text = value.ToString();
-        }
+        // Nil means the input was disconnected: keep the last value instead of resetting to 0
+        if (inputSlot != 0 || data.VariantType == Variant.Type.Nil) return;
+        float newValue = (float)data;
+        if (newValue == value) return;
+        value = newValue;
+        lineEdit.Text = value.ToString(); // only on change, so the field isn't rewritten every frame
     }
 }

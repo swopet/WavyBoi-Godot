@@ -19,26 +19,32 @@ public partial class Controller : Control
 	private Window DisplayWindow = null;
 	private AudioStreamPlayer _micPlayer = null;
 
+	private const int MaxResolution = 16384;
+
+	// When true the render resolution follows the display (or the selected monitor while the
+	// display is closed); when false the width/height fields are an override.
+	private bool _autoResolution = true;
+
 	private void OpenDisplayWindow()
 	{
 		// Close any existing window first
 		CloseDisplayWindow();
 
-		var monitorSelect = GetNode<OptionButton>(MonitorSelectPath);
-		int selectedMonitor = monitorSelect.Selected;
-		var widthField = GetNode<LineEdit>(WidthFieldPath);
-		var heightField = GetNode<LineEdit>(HeightFieldPath);
-		int width = int.TryParse(widthField.Text, out var w) ? w : 1280;
-		int height = int.TryParse(heightField.Text, out var h) ? h : 720;
+		int selectedMonitor = GetNode<OptionButton>(MonitorSelectPath).Selected;
 
-		DisplayWindow = new Window();
-		
+		// Configure before adding to the tree so the window doesn't first appear on the primary screen
+		DisplayWindow = new Window
+		{
+			Title = "Display Window",
+			InitialPosition = Window.WindowInitialPosition.CenterOtherScreen,
+			CurrentScreen = selectedMonitor,
+			Size = DisplayServer.ScreenGetSize(selectedMonitor),
+		};
+		// Godot doesn't close windows on its own; without this the OS close button does nothing
+		DisplayWindow.CloseRequested += CloseDisplayWindow;
+		DisplayWindow.SizeChanged += UpdateOutputResolution;
 		GetTree().Root.AddChild(DisplayWindow);
-		DisplayWindow.Title = "Display Window";
-		DisplayWindow.Size = new Vector2I(width, height);
-		DisplayWindow.CurrentScreen = selectedMonitor;
 		DisplayWindow.Mode = Window.ModeEnum.Fullscreen;
-		DisplayWindow.Visible = true;
 		var _displayRect = new TextureRect
 		{
 			ExpandMode = TextureRect.ExpandModeEnum.KeepSize,
@@ -48,6 +54,8 @@ public partial class Controller : Control
 		};
 		DisplayWindow.AddChild(_displayRect);
 		_displayRect.Texture = GetNode<VisualsGraphEdit>(GraphEditPath).GetOutputTexture() as Texture2D;
+		GetNode<Button>(ToggleDisplayPath).Text = "Close Display Window";
+		UpdateOutputResolution();
 	}
 
 	private void CloseDisplayWindow()
@@ -58,6 +66,37 @@ public partial class Controller : Control
 			DisplayWindow.QueueFree();
 			DisplayWindow = null;
 		}
+		GetNode<Button>(ToggleDisplayPath).Text = "Open Display Window";
+		UpdateOutputResolution();
+	}
+
+	/// <summary>
+	/// Push the current render resolution to the graph: the display's real size in auto mode,
+	/// otherwise the width/height fields.
+	/// </summary>
+	private void UpdateOutputResolution()
+	{
+		var widthField = GetNode<LineEdit>(WidthFieldPath);
+		var heightField = GetNode<LineEdit>(HeightFieldPath);
+		Vector2I resolution;
+		if (_autoResolution)
+		{
+			resolution = DisplayWindow != null
+				? DisplayWindow.Size
+				: DisplayServer.ScreenGetSize(GetNode<OptionButton>(MonitorSelectPath).Selected);
+			widthField.Text = resolution.X.ToString();
+			heightField.Text = resolution.Y.ToString();
+			_lastValidWidth = widthField.Text;
+			_lastValidHeight = heightField.Text;
+		}
+		else
+		{
+			resolution = new Vector2I(int.Parse(_lastValidWidth), int.Parse(_lastValidHeight));
+		}
+		if (resolution.X <= 0 || resolution.Y <= 0) return; // window not laid out yet
+		var graphEdit = GetNode<VisualsGraphEdit>(GraphEditPath);
+		if (graphEdit.OutputResolution != resolution)
+			graphEdit.OutputResolution = resolution;
 	}
 	public override void _Ready()
 	{
@@ -69,9 +108,12 @@ public partial class Controller : Control
 			string name = i.ToString() + DisplayServer.ScreenGetSize(i).ToString();
 			monitorSelect.AddItem(name);
 		}
-		// Connect Auto button
+		monitorSelect.ItemSelected += (index) => UpdateOutputResolution();
+		// Auto is a toggle: on = follow the display, off = use the width/height fields
 		var autoButton = GetNode<Button>(AutoButtonPath);
-		autoButton.Pressed += OnAutoButtonPressed;
+		autoButton.ToggleMode = true;
+		autoButton.ButtonPressed = _autoResolution;
+		autoButton.Toggled += OnAutoButtonToggled;
 
 		// Connect validation for Width and Height fields
 		var widthField = GetNode<LineEdit>(WidthFieldPath);
@@ -81,9 +123,8 @@ public partial class Controller : Control
 		heightField.TextSubmitted += OnHeightFieldTextSubmitted;
 		heightField.FocusExited += OnHeightFieldFocusExited;
 
-		// Store initial valid values
-		_lastValidWidth = widthField.Text;
-		_lastValidHeight = heightField.Text;
+		widthField.Editable = !_autoResolution;
+		heightField.Editable = !_autoResolution;
 
 
 		// Populate AudioSelect OptionButton with available audio inputs
@@ -93,6 +134,11 @@ public partial class Controller : Control
 		{
 			audioSelect.AddItem(device);
 		}
+		audioSelect.ItemSelected += (index) =>
+		{
+			// Switch devices live while audio is running
+			if (_micPlayer != null) ApplySelectedInputDevice();
+		};
 
 		var toggleAudioButton = GetNode<Button>(ToggleAudioPath);
 		toggleAudioButton.Pressed += OnToggleAudio;
@@ -108,10 +154,26 @@ public partial class Controller : Control
 
 
 
-		// Initialize fields with first monitor's resolution
-		OnAutoButtonPressed();
 		GetNode<VisualsGraphEdit>(GraphEditPath).CreateVisualBus();
 		GetNode<VisualsGraphEdit>(GraphEditPath).spectrum = GetNode<Spectrum>(SpectrumPath);
+		// Initialize fields with the selected monitor's resolution and size the graph to match
+		UpdateOutputResolution();
+	}
+
+	private void ApplySelectedInputDevice()
+	{
+		// Look the device up by name: indices go stale if devices are plugged in or removed
+		var audioSelect = GetNode<OptionButton>(AudioSelectPath);
+		if (audioSelect.Selected < 0) return;
+		string device = audioSelect.GetItemText(audioSelect.Selected);
+		if (System.Array.IndexOf(AudioServer.GetInputDeviceList(), device) >= 0)
+		{
+			AudioServer.SetInputDevice(device);
+		}
+		else
+		{
+			GD.PushWarning($"Audio input device '{device}' is no longer available");
+		}
 	}
 
 	private void OnNormalizeAudio()
@@ -123,11 +185,8 @@ public partial class Controller : Control
 	private void OnToggleAudio()
 	{
 		
-		// Set the input device if you want a specific one
-		var audioSelect = GetNode<OptionButton>(AudioSelectPath);
 		var toggleAudioButton = GetNode<Button>(ToggleAudioPath);
-		var inputDevices = AudioServer.GetInputDeviceList();
-		
+
 		if (_micPlayer == null)
 		{
 			
@@ -135,10 +194,7 @@ public partial class Controller : Control
 			_micPlayer.Stream = new AudioStreamMicrophone();
 			_micPlayer.Bus = "Spectrum";
 			AddChild(_micPlayer);
-			if (audioSelect.Selected >= 0 && audioSelect.Selected < inputDevices.Length)
-			{
-				AudioServer.SetInputDevice(inputDevices[audioSelect.Selected]);
-			}
+			ApplySelectedInputDevice();
 			_micPlayer.Play();
 			toggleAudioButton.Text = "Audio Off";
 			var spectrum = GetNode<Spectrum>(SpectrumPath);
@@ -146,7 +202,6 @@ public partial class Controller : Control
 			normalizeAudio.Visible = true;
 			spectrum.Visible = true;
 			spectrum.NormalizeAudio();
-			spectrum.UpdateHboxWidth();
 		}
 		else
 		{
@@ -157,48 +212,48 @@ public partial class Controller : Control
 			var normalizeAudio = GetNode<Button>(NormalizeAudioPath);
 			normalizeAudio.Visible = false;
 			spectrum.Visible = false;
-			spectrum.DeleteBars();
 			toggleAudioButton.Text = "Audio On";
 		}
 	}
 
 	private void OnToggleDisplay()
+	{
+		// Button text is kept in sync by Open/CloseDisplayWindow, which the window's
+		// own close button also goes through
+		if (DisplayWindow == null)
 		{
-			var toggleDisplayButton = GetNode<Button>(ToggleDisplayPath);
-			if (DisplayWindow == null)
-			{
-				OpenDisplayWindow();
-				toggleDisplayButton.Text = "Close Display Window";
-			}
-			else
-			{
-				CloseDisplayWindow();
-				toggleDisplayButton.Text = "Open Display Window";
-			}
+			OpenDisplayWindow();
 		}
+		else
+		{
+			CloseDisplayWindow();
+		}
+	}
 	private string _lastValidWidth = "";
 	private string _lastValidHeight = "";
 
-	private void OnAutoButtonPressed()
+	private void OnAutoButtonToggled(bool pressed)
 	{
-		var monitorSelect = GetNode<OptionButton>(MonitorSelectPath);
-		int selectedMonitor = monitorSelect.Selected;
-		Vector2I res = DisplayServer.ScreenGetSize(selectedMonitor);
-		var widthField = GetNode<LineEdit>(WidthFieldPath);
-		var heightField = GetNode<LineEdit>(HeightFieldPath);
-		widthField.Text = res.X.ToString();
-		heightField.Text = res.Y.ToString();
-		_lastValidWidth = widthField.Text;
-		_lastValidHeight = heightField.Text;
+		_autoResolution = pressed;
+		// Fields are read-only while auto; turning auto off starts the override from the current size
+		GetNode<LineEdit>(WidthFieldPath).Editable = !pressed;
+		GetNode<LineEdit>(HeightFieldPath).Editable = !pressed;
+		UpdateOutputResolution();
+	}
+
+	private static bool IsValidDimension(string text)
+	{
+		return int.TryParse(text, out int value) && value > 0 && value <= MaxResolution;
 	}
 
 	private void ValidateWidthField()
 	{
 		var widthField = GetNode<LineEdit>(WidthFieldPath);
 		string text = widthField.Text;
-		if (int.TryParse(text, out _))
+		if (IsValidDimension(text))
 		{
-			_lastValidWidth = text;
+			_lastValidWidth = text.Trim();
+			UpdateOutputResolution();
 		}
 		else
 		{
@@ -210,9 +265,10 @@ public partial class Controller : Control
 	{
 		var heightField = GetNode<LineEdit>(HeightFieldPath);
 		string text = heightField.Text;
-		if (int.TryParse(text, out _))
+		if (IsValidDimension(text))
 		{
-			_lastValidHeight = text;
+			_lastValidHeight = text.Trim();
+			UpdateOutputResolution();
 		}
 		else
 		{
@@ -240,5 +296,4 @@ public partial class Controller : Control
 		ValidateHeightField();
 	}
 
-	// ...existing code...
 }

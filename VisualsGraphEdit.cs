@@ -14,6 +14,22 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 		}
 	}
 	private VisualBusNode visualBusNode;
+
+	// Resolution every shader node and the output bus render at. Set by the Controller
+	// (auto-detected from the display, or a user override).
+	private Vector2I outputResolution = new Vector2I(1920, 1080);
+	public Vector2I OutputResolution
+	{
+		get => outputResolution;
+		set
+		{
+			outputResolution = value;
+			foreach (var node in GetChildren().OfType<IResolutionDependent>())
+			{
+				node.SetResolution(outputResolution);
+			}
+		}
+	}
 	
 	public Texture GetOutputTexture(){
 		return visualBusNode?.GetOutputTexture();
@@ -34,6 +50,7 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 	{
 		if (Engine.IsEditorHint()){
 			PopulateTypeNames();
+			return; // Don't spawn runtime nodes into the scene being edited
 		}
 		EnableTypeConnections();
 		
@@ -121,6 +138,7 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
         }
 
         newNode.PositionOffset = foundPos;
+        (newNode as IResolutionDependent)?.SetResolution(outputResolution);
     }
 
     private bool IsOverlapping(GraphNode node, Vector2 testPos)
@@ -172,6 +190,7 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 	// Called every frame. 'delta' is the elapsed time since the previous frame.
 	public override void _Process(double delta)
 	{
+		if (Engine.IsEditorHint()) return;
 		PropagateDataThroughGraph();
 	}
 
@@ -226,6 +245,9 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 
 	private void OnConnectionRequest(StringName fromNode, long fromSlot, StringName toNode, long toSlot)
 	{
+		// Texture feedback loops (including a node into itself) would make a SubViewport sample itself
+		if (WouldCreateCycle(fromNode, toNode)) return;
+
 		// Check if the destination port already has a connection
 		foreach (Godot.Collections.Dictionary connection in GetConnectionList())
 		{
@@ -243,6 +265,27 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 
     	ConnectNode(fromNode, (int)fromSlot, toNode, (int)toSlot);
 		ReorderNodesByConnections();
+	}
+
+	private bool WouldCreateCycle(StringName fromNode, StringName toNode)
+	{
+		// A cycle exists if fromNode is already reachable downstream of toNode
+		var connections = GetConnectionList();
+		var visited = new HashSet<StringName>();
+		var stack = new Stack<StringName>();
+		stack.Push(toNode);
+		while (stack.Count > 0)
+		{
+			var current = stack.Pop();
+			if (current == fromNode) return true;
+			if (!visited.Add(current)) continue;
+			foreach (Godot.Collections.Dictionary connection in connections)
+			{
+				if ((StringName)connection["from_node"] == current)
+					stack.Push((StringName)connection["to_node"]);
+			}
+		}
+		return false;
 	}
 
 	private void OnDisconnectionRequest(StringName fromNode, long fromSlot, StringName toNode, long toSlot)
@@ -271,7 +314,8 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
         {
             string from = (string)conn["from_node"];
             string to = (string)conn["to_node"];
-            
+            if (!adjacency.ContainsKey(from) || !inDegree.ContainsKey(to)) continue;
+
             adjacency[from].Add(to);
             inDegree[to]++;
         }
@@ -302,7 +346,10 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 
     public void PropagateDataThroughGraph()
     {
-        var connections = GetConnectionList();
+        // Children are kept in topological order by ReorderNodesByConnections, so walking
+        // connections in source-node order lets values flow through chains in one frame
+        var connections = GetConnectionList()
+            .OrderBy(connection => GetNodeOrNull((string)connection["from_node"])?.GetIndex() ?? int.MaxValue);
         foreach (Godot.Collections.Dictionary connection in connections)
         {
             string fromNodeName = (string)connection["from_node"];
@@ -310,8 +357,8 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
             int fromSlot = (int)connection["from_port"];
             int toSlot = (int)connection["to_port"];
 
-            var fromNode = GetNode(fromNodeName) as IGraphNode;
-            var toNode = GetNode(toNodeName) as IGraphNode;
+            var fromNode = GetNodeOrNull(fromNodeName) as IGraphNode;
+            var toNode = GetNodeOrNull(toNodeName) as IGraphNode;
 
             if (fromNode == null || toNode == null) continue;
 

@@ -1,7 +1,7 @@
 using Godot;
 using Godot.Collections;
 using System;
-using System.Threading.Tasks;
+using System.Linq;
 
 struct BusData
 {
@@ -12,7 +12,7 @@ struct BusData
 	public float CalculatedWeight;
 }
 
-public partial class VisualBusNode : GraphNode, IGraphNode
+public partial class VisualBusNode : GraphNode, IGraphNode, IResolutionDependent
 {
 	[Signal]
 	public delegate void BusDeletedEventHandler(int index);
@@ -39,6 +39,29 @@ public partial class VisualBusNode : GraphNode, IGraphNode
 		ConnectBusSignals(buses[0].Bus);
 		busIndices[buses[0].Bus] = 0;
 		buses[0].Bus.UpdateWeight(1.0f);
+		GetNode<LineEdit>(FadeSpeedLineEditPath).Text = fadeTime.ToString();
+	}
+
+	public void SetResolution(Vector2I resolution)
+	{
+		var viewport = GetNode<SubViewport>(PreviewSubViewportPath);
+		viewport.Size = resolution;
+		foreach (var sprite in viewport.GetChildren().OfType<Sprite2D>())
+		{
+			// Center with Position rather than Offset: Offset gets multiplied by Scale
+			sprite.Offset = Vector2.Zero;
+			sprite.Position = resolution / 2;
+		}
+	}
+
+	// Start a fade from wherever the bus currently is. Resetting the elapsed time matters:
+	// otherwise reversing a fade mid-way resumes the old progress and the weight jumps.
+	private void SetTargetWeight(int index, float target)
+	{
+		if (buses[index].TargetWeight == target) return;
+		buses[index].TargetWeight = target;
+		buses[index].LastSetWeight = buses[index].CurrentWeight;
+		fadeTimes[index] = 0.0f;
 	}
 
 	private void ConnectBusSignals(VisualBus bus)
@@ -77,7 +100,7 @@ public partial class VisualBusNode : GraphNode, IGraphNode
 		{
 			BlendMode = CanvasItemMaterial.BlendModeEnum.Add
 		};
-		new_sprite.Offset = PreviewSubViewportPath == null ? Vector2.Zero : GetNode<SubViewport>(PreviewSubViewportPath).Size / 2;
+		new_sprite.Position = PreviewSubViewportPath == null ? Vector2.Zero : GetNode<SubViewport>(PreviewSubViewportPath).Size / 2;
 		GetNode(PreviewSubViewportPath).AddChild(new_sprite); // Add a Sprite2D to the preview viewport to show this bus's output
 	}
 
@@ -85,16 +108,14 @@ public partial class VisualBusNode : GraphNode, IGraphNode
 	{
 		
 		priority_bus = bus;
-		buses[busIndices[bus]].TargetWeight = 1.0f;
-		buses[busIndices[bus]].LastSetWeight = buses[busIndices[bus]].CurrentWeight;
+		SetTargetWeight(busIndices[bus], 1.0f);
 		if (exclusive)
 		{
 			for (int i = 0; i < buses.Length; i++)
 			{
 				if (priority_bus != buses[i].Bus)
 				{
-					buses[i].TargetWeight = 0.0f;
-					buses[i].LastSetWeight = buses[i].CurrentWeight;
+					SetTargetWeight(i, 0.0f);
 				}
 			}
 		}
@@ -103,26 +124,18 @@ public partial class VisualBusNode : GraphNode, IGraphNode
 	private void OnBusFadeInButtonPressed(VisualBus bus)
 	{
 		priority_bus = bus;
-		buses[busIndices[bus]].TargetWeight = 1.0f;
-		buses[busIndices[bus]].LastSetWeight = buses[busIndices[bus]].CurrentWeight;
-		for (int i = 0; i < buses.Length; i++)
-		{
-			GD.Print($"Bus {i}: TargetWeight={buses[i].TargetWeight}");
-		}
+		SetTargetWeight(busIndices[bus], 1.0f);
 	}
 
 	private void OnBusFadeOutButtonPressed(VisualBus bus)
 	{
-		GD.Print(buses.Length, " buses");
 		if (priority_bus == bus)
 		{
 			priority_bus = null;
 		}
-		buses[busIndices[bus]].TargetWeight = 0.0f;
-		buses[busIndices[bus]].LastSetWeight = buses[busIndices[bus]].CurrentWeight;
+		SetTargetWeight(busIndices[bus], 0.0f);
 		for (int i = 0; i < buses.Length; i++)
 		{
-			GD.Print($"Bus {i}: TargetWeight={buses[i].TargetWeight}");
 			if (buses[i].TargetWeight > 0.01f && priority_bus == null)
 			{
 				priority_bus = buses[i].Bus;
@@ -145,18 +158,26 @@ public partial class VisualBusNode : GraphNode, IGraphNode
 		// Emit signal to notify graph of deletion
 		EmitSignal(SignalName.BusDeleted, index);
 		
-		buses[index].Bus.Name = $"Bus{index + 1}_Deleting";
-		buses[index].Bus.QueueFree();
+		var deletedBus = buses[index].Bus;
+		busIndices.Remove(deletedBus);
+		if (priority_bus == deletedBus) priority_bus = null;
+		// Remove from the tree right away (not just QueueFree) so child/slot indices
+		// are correct for the rest of this frame
+		RemoveChild(deletedBus);
+		deletedBus.QueueFree();
 		
 		for (int i = index; i < buses.Length - 1; i++)
 		{
 			buses[i] = buses[i + 1];
+			fadeTimes[i] = fadeTimes[i + 1];
 			busIndices[buses[i].Bus] = i;
 			buses[i].Bus.Name = $"Bus{i + 1}";
 		}
 		System.Array.Resize(ref buses, buses.Length - 1);
 		System.Array.Resize(ref fadeTimes, fadeTimes.Length - 1);
-		GetNode(PreviewSubViewportPath).GetChild<Sprite2D>(index).QueueFree();
+		var sprite = GetNode(PreviewSubViewportPath).GetChild<Sprite2D>(index);
+		sprite.GetParent().RemoveChild(sprite);
+		sprite.QueueFree();
 		SetSlotEnabledLeft(buses.Length + 1, false);
 		if (buses.Length == 1) buses[0].Bus.ToggleDeleteButton(false);
 	}
@@ -169,13 +190,13 @@ public partial class VisualBusNode : GraphNode, IGraphNode
 	void IGraphNode.SetInputData(int inputSlot, Variant data)
 	{
 		int busIndex = inputSlot;
-		buses[busIndex].Bus.GetChild<TextureRect>(0).Texture = (Texture2D)data;
-	
+		if (busIndex < 0 || busIndex >= buses.Length) return;
+		buses[busIndex].Bus.GetChild<TextureRect>(0).Texture = data.VariantType == Variant.Type.Object ? data.As<Texture2D>() : null;
 	}
 
 	public void OnFadeSpeedLineEditTextSubmitted(string text)
 	{
-		if (float.TryParse(text, out float newFadeTime))
+		if (float.TryParse(text, out float newFadeTime) && newFadeTime >= 0.0f)
 		{
 			fadeTime = newFadeTime;
 		}
@@ -192,14 +213,7 @@ public partial class VisualBusNode : GraphNode, IGraphNode
 		{
 			for (int i = 0; i < buses.Length; i++)
 			{
-				if (priority_bus == buses[i].Bus)
-				{
-					buses[i].TargetWeight = 1.0f;
-				}
-				else
-				{
-					buses[i].TargetWeight = 0.0f;
-				}
+				SetTargetWeight(i, priority_bus == buses[i].Bus ? 1.0f : 0.0f);
 			}
 		}
 	}
@@ -213,7 +227,7 @@ public partial class VisualBusNode : GraphNode, IGraphNode
 			if (buses[i].TargetWeight != buses[i].CurrentWeight)
 			{
 				fadeTimes[i] += (float)delta;
-				float t = Mathf.Clamp(fadeTimes[i] / fadeTime,0,1);
+				float t = fadeTime > 0.0f ? Mathf.Clamp(fadeTimes[i] / fadeTime, 0, 1) : 1.0f;
 				buses[i].CurrentWeight = Mathf.Lerp(buses[i].LastSetWeight, buses[i].TargetWeight, t);
 				
 				if (t >= 1.0f)
@@ -227,6 +241,9 @@ public partial class VisualBusNode : GraphNode, IGraphNode
 			var sprite = GetNode(PreviewSubViewportPath).GetChild<Sprite2D>(i);
 			var busTexture = (buses[i].Bus.GetChild(0) as TextureRect).Texture;
 			sprite.Texture = busTexture;
+			// Stretch inputs that aren't at the output resolution (e.g. a gradient) to fill the frame
+			if (busTexture != null)
+				sprite.Scale = (Vector2)GetNode<SubViewport>(PreviewSubViewportPath).Size / busTexture.GetSize();
 		}
 		for (int i = 0; i < buses.Length; i++)
 		{
