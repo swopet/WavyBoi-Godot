@@ -1,7 +1,7 @@
 using Godot;
 using System;
 
-public partial class FloatNode : GraphNode , IGraphNode
+public partial class FloatNode : GraphNode , IGraphNode, ISerializableNode
 {
     float value = 0.0f;
     [Export] public LineEdit lineEdit;
@@ -24,6 +24,17 @@ public partial class FloatNode : GraphNode , IGraphNode
                 lineEdit.Text = value.ToString();
             }
         };
+    }
+
+    public Godot.Collections.Dictionary Save()
+    {
+        return new Godot.Collections.Dictionary { ["value"] = value };
+    }
+
+    public void Load(Godot.Collections.Dictionary data)
+    {
+        value = (float)data["value"];
+        lineEdit.Text = value.ToString();
     }
 
     Variant IGraphNode.GetOutputData(int outputSlot)

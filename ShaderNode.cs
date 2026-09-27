@@ -18,7 +18,7 @@ public class Parameter
 }
 
 [Tool]
-public partial class ShaderNode : GraphNode, IGraphNode, IResolutionDependent
+public partial class ShaderNode : GraphNode, IGraphNode, IResolutionDependent, ISerializableNode
 {
 	private NodePath _previewPanelPath;
 	[Export] public NodePath PreviewPanelPath
@@ -150,6 +150,48 @@ public partial class ShaderNode : GraphNode, IGraphNode, IResolutionDependent
 				}
 				Parameters[i].Updated = false; // Reset the updated flag after applying the parameter to the shader
 			}
+		}
+	}
+
+	public virtual Godot.Collections.Dictionary Save()
+	{
+		// Textures come from connections, so only the directly-set values are saved
+		var values = new Godot.Collections.Dictionary();
+		foreach (var param in Parameters)
+		{
+			if (param.Value.VariantType == Variant.Type.Nil) continue;
+			switch (param.Type)
+			{
+				case SlotType.Integer: values[param.Name] = (int)param.Value; break;
+				case SlotType.Float: values[param.Name] = (float)param.Value; break;
+				case SlotType.Color: values[param.Name] = GraphIO.ToArray((Color)param.Value); break;
+			}
+		}
+		return new Godot.Collections.Dictionary
+		{
+			["parameters"] = values,
+			["preview_visible"] = (GetNode<PanelContainer>(PreviewPanelPath).GetChild(0) as TextureRect).Visible,
+		};
+	}
+
+	public virtual void Load(Godot.Collections.Dictionary data)
+	{
+		var values = (Godot.Collections.Dictionary)data["parameters"];
+		foreach (var param in Parameters)
+		{
+			if (!values.ContainsKey(param.Name)) continue;
+			switch (param.Type)
+			{
+				case SlotType.Integer: param.Value = (int)values[param.Name]; break;
+				case SlotType.Float: param.Value = (float)values[param.Name]; break;
+				case SlotType.Color: param.Value = GraphIO.ToColor(values[param.Name]); break;
+			}
+		}
+		if (data.ContainsKey("preview_visible"))
+		{
+			bool visible = (bool)data["preview_visible"];
+			GetNode<PanelContainer>(PreviewPanelPath).GetNode<CheckButton>("ShowHideButton").ButtonPressed = visible;
+			OnShowHideButtonToggled(visible);
 		}
 	}
 

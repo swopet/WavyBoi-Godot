@@ -61,8 +61,14 @@ max_length = 3
 layout_mode = 2
 text = "+"
 
+[node name="SaveButton" type="Button" parent="GradientPreviewHBox" unique_id=779630161]
+layout_mode = 2
+tooltip_text = "Save as preset"
+text = "Save"
+
 [node name="GradientColorHBox1" parent="." unique_id=262809335 instance=ExtResource("1_07ejf")]
 layout_mode = 2
 
 [connection signal="text_submitted" from="GradientPreviewHBox/LineEdit" to="." method="OnLineEditTextSubmitted"]
 [connection signal="pressed" from="GradientPreviewHBox/Button" to="." method="AddColor"]
+[connection signal="pressed" from="GradientPreviewHBox/SaveButton" to="." method="OnSavePresetPressed"]

@@ -1,16 +1,63 @@
 using Godot;
-using System;
+using System.Collections.Generic;
 
+/// <summary>
+/// Inside a SubGraph: exposes the SubGraph node's inputs as output ports.
+/// </summary>
 public partial class InputsNode : GraphNode, IGraphNode
 {
-    public Variant GetOutputData(int outputSlot)
-    {
-        throw new NotImplementedException();
-    }
+	public SubGraphNode SubGraph;
 
-    public void SetInputData(int inputSlot, Variant data)
-    {
-        throw new NotImplementedException();
-    }
+	public override void _Ready()
+	{
+		Title = "Inputs";
+	}
 
+	public void Rebuild(List<SubGraphPort> ports)
+	{
+		SubGraphPortRows.Rebuild(this, ports, rightSide: true);
+	}
+
+	Variant IGraphNode.GetOutputData(int outputSlot) => SubGraph?.GetInputValue(outputSlot) ?? default;
+
+	void IGraphNode.SetInputData(int inputSlot, Variant data)
+	{
+	}
+}
+
+internal static class SubGraphPortRows
+{
+	public static void Rebuild(GraphNode node, List<SubGraphPort> ports, bool rightSide)
+	{
+		while (node.GetChildCount() > 0)
+		{
+			var child = node.GetChild(0);
+			node.RemoveChild(child);
+			child.QueueFree();
+		}
+		node.ClearAllSlots();
+		if (ports.Count == 0)
+		{
+			node.AddChild(new Label { Text = "(none)" });
+			return;
+		}
+		for (int i = 0; i < ports.Count; i++)
+		{
+			node.AddChild(new Label
+			{
+				Text = ports[i].Label,
+				HorizontalAlignment = rightSide ? HorizontalAlignment.Right : HorizontalAlignment.Left,
+			});
+			if (rightSide)
+			{
+				node.SetSlotEnabledRight(i, true);
+				node.SetSlotTypeRight(i, (int)ports[i].Type);
+			}
+			else
+			{
+				node.SetSlotEnabledLeft(i, true);
+				node.SetSlotTypeLeft(i, (int)ports[i].Type);
+			}
+		}
+	}
 }

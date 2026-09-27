@@ -37,6 +37,20 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 
 	private NodeList nodeList;
 
+	// Node type keys, stored as metadata so graphs can be saved and rebuilt
+	public const string TypeMeta = "graph_type";
+	public const string SubGraphType = "SubGraph";
+	public const string InputsType = "SubGraphInputs";
+	public const string OutputsType = "SubGraphOutputs";
+	private const string PrimitivePrefix = "Primitive/";
+	private const string ShaderPrefix = "Shader/";
+
+	// Only the main graph starts with the demo nodes
+	public bool SpawnDefaultNodes = true;
+	public GraphNavigator Navigator;
+	// Where SubGraph editors are added (beside the main graph, under the UI)
+	public Node Host;
+
 	public void CreateVisualBus(){
 		visualBusNode = nodeList.VisualBus.Instantiate<VisualBusNode>();
 		SpawnAtClosestAvailable(visualBusNode, new Vector2(0, 0));
@@ -55,13 +69,17 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 		EnableTypeConnections();
 		
 		nodeList = ResourceLoader.Load<NodeList>("res://GraphNodes/MasterList.tres");
+		ConnectionRequest += OnConnectionRequest;
+		DisconnectionRequest += OnDisconnectionRequest;
+		PopupRequest += OnPopupRequest;
+		if (!SpawnDefaultNodes) return;
 
 		for (int i = 0; i < 2; i++)
 		{
 			AddPrimitive("Float");
 		}
 		AddPrimitive("Gradient");
-		
+
 		for (int i = 0; i < 5; i++)
 		{
 			AddShader("BwGrid");
@@ -75,37 +93,87 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 		{
 			AddShader("BwSpiral");
 		}
-		ConnectionRequest += OnConnectionRequest;
-		DisconnectionRequest += OnDisconnectionRequest;
 	}
 
-	public void AddPrimitive(string primitiveName)
+	public GraphNode AddPrimitive(string primitiveName, Vector2 position = default)
 	{
-		PackedScene primitiveScene = null;
-		nodeList.Primitives.TryGetValue(primitiveName, out primitiveScene);
-		if (primitiveScene != null)
-		{
-			var newNode = primitiveScene.Instantiate<GraphNode>();
-			SpawnAtClosestAvailable(newNode, new Vector2(0, 0));
-		}
+		return AddNode(PrimitivePrefix + primitiveName, position);
 	}
 
-	public void AddShader(string shaderName)
+	public GraphNode AddShader(string shaderName, Vector2 position = default)
 	{
-		PackedScene shaderScene = null;
-		nodeList.Shaders.TryGetValue(shaderName, out shaderScene);
-		if (shaderScene != null)
+		return AddNode(ShaderPrefix + shaderName, position);
+	}
+
+	public GraphNode AddNode(string typeKey, Vector2 position)
+	{
+		var node = CreateNode(typeKey);
+		if (node != null) SpawnAtClosestAvailable(node, position);
+		return node;
+	}
+
+	/// <summary>
+	/// Instantiate a node from its type key ("Primitive/Float", "Shader/BwGrid", "SubGraph", ...)
+	/// without adding it to the graph.
+	/// </summary>
+	public GraphNode CreateNode(string typeKey)
+	{
+		GraphNode node = null;
+		if (typeKey.StartsWith(PrimitivePrefix)
+			&& nodeList.Primitives.TryGetValue(typeKey.Substring(PrimitivePrefix.Length), out var primitiveScene))
 		{
-			var newNode = shaderScene.Instantiate<ShaderNode>();
-			newNode.Title = shaderName; // Set the node name to the shader name for easier identification
-			SpawnAtClosestAvailable(newNode, new Vector2(0, 0));
+			node = primitiveScene.Instantiate<GraphNode>();
 		}
+		else if (typeKey.StartsWith(ShaderPrefix)
+			&& nodeList.Shaders.TryGetValue(typeKey.Substring(ShaderPrefix.Length), out var shaderScene))
+		{
+			node = shaderScene.Instantiate<ShaderNode>();
+			node.Title = typeKey.Substring(ShaderPrefix.Length); // Set the node name to the shader name for easier identification
+		}
+		else if (typeKey == SubGraphType) node = new SubGraphNode();
+		else if (typeKey == InputsType) node = new InputsNode();
+		else if (typeKey == OutputsType) node = new OutputsNode();
+
+		if (node == null)
+		{
+			GD.PushWarning($"Unknown graph node type '{typeKey}'");
+			return null;
+		}
+		node.SetMeta(TypeMeta, typeKey);
+		return node;
+	}
+
+	/// <summary>
+	/// Create the (hidden) graph editor for a SubGraph, set up like this one.
+	/// </summary>
+	public VisualsGraphEdit CreateChildGraph()
+	{
+		var graph = new VisualsGraphEdit
+		{
+			SpawnDefaultNodes = false,
+			Navigator = Navigator,
+			Host = Host,
+			Visible = false,
+			outputResolution = outputResolution,
+			RightDisconnects = RightDisconnects,
+			GridPattern = GridPattern,
+			ShowMenu = ShowMenu,
+			ShowZoomButtons = ShowZoomButtons,
+			ShowGridButtons = ShowGridButtons,
+			TypeNames = TypeNames.Duplicate(),
+		};
+		graph.SetAnchorsPreset(LayoutPreset.FullRect);
+		var host = Host ?? GetParent();
+		host.AddChild(graph);
+		// Right after this graph: below the UI, and processed after its parent graph each frame
+		host.MoveChild(graph, GetIndex() + 1);
+		return graph;
 	}
 
 	public void SpawnAtClosestAvailable(GraphNode newNode, Vector2 targetPos)
     {
         // 1. Add to tree so Size is calculated
-        AddChild(newNode);
+        AddChild(newNode, true); // readable names ("BWGrid2", not "@BWGrid@12") survive save/load unchanged
         newNode.PositionOffset = targetPos;
 
         // 2. Setup search parameters
@@ -140,6 +208,330 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
         newNode.PositionOffset = foundPos;
         (newNode as IResolutionDependent)?.SetResolution(outputResolution);
     }
+
+	private Vector2 ToGraphPosition(Vector2 localPosition) => (localPosition + ScrollOffset) / Zoom;
+
+	private void OnPopupRequest(Vector2 atPosition)
+	{
+		Vector2 spawnPosition = ToGraphPosition(atPosition);
+		var menu = new PopupMenu();
+		var actions = new List<System.Action>();
+		void AddAction(PopupMenu target, string label, System.Action action, bool disabled = false)
+		{
+			target.AddItem(label, actions.Count);
+			target.SetItemDisabled(target.ItemCount - 1, disabled);
+			actions.Add(action);
+		}
+		void AddSubmenu(string label, IEnumerable<string> items, System.Action<string> onPick)
+		{
+			var submenu = new PopupMenu();
+			foreach (var item in items) AddAction(submenu, item, () => onPick(item));
+			if (submenu.ItemCount == 0) AddAction(submenu, "(none saved)", () => { }, disabled: true);
+			submenu.IdPressed += id => actions[(int)id]();
+			menu.AddSubmenuNodeItem(label, submenu);
+		}
+
+		AddSubmenu("Primitives", nodeList.Primitives.Keys, name => AddPrimitive(name, spawnPosition));
+		AddSubmenu("Shaders", nodeList.Shaders.Keys, name => AddShader(name, spawnPosition));
+		AddSubmenu("Saved SubGraphs", GraphIO.List(GraphIO.SubGraphDir), name => LoadSubGraph(name, spawnPosition));
+		AddSubmenu("Gradient Presets", GraphIO.List(GraphIO.GradientDir), name => LoadGradientPreset(name, spawnPosition));
+		AddAction(menu, "Empty SubGraph", () => AddNode(SubGraphType, spawnPosition));
+		menu.AddSeparator();
+		AddAction(menu, "Collapse Selection to SubGraph   (Ctrl+G)", () => CollapseSelectionToSubGraph(),
+			disabled: !GetCollapsibleSelection().Any());
+		menu.IdPressed += id => actions[(int)id]();
+		menu.PopupHide += menu.QueueFree;
+		AddChild(menu);
+		menu.Position = (Vector2I)(GetScreenPosition() + atPosition);
+		menu.Popup();
+	}
+
+	// GraphEdit toggles selection with Ctrl-click, but a Shift-click clears the rest of the
+	// selection. Remember the selection before the click and restore it afterwards so
+	// Shift-click adds the node (or removes it if it was already selected).
+	public override void _Input(InputEvent @event)
+	{
+		if (Engine.IsEditorHint() || !IsVisibleInTree()) return;
+		if (@event is not InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true, ShiftPressed: true, CtrlPressed: false } click) return;
+		var clicked = GetChildren().OfType<GraphNode>()
+			// Full transform (not GetGlobalRect) so the hit test respects the graph's zoom
+			.LastOrDefault(node => node.Visible
+				&& (node.GetGlobalTransformWithCanvas() * new Rect2(Vector2.Zero, node.Size)).HasPoint(click.Position));
+		if (clicked == null) return; // empty space: Shift+drag box-select already adds to the selection
+		var previouslySelected = GetChildren().OfType<GraphNode>().Where(node => node.Selected).ToList();
+		bool wasSelected = clicked.Selected;
+		Callable.From(() => ApplyShiftClick(clicked, previouslySelected, wasSelected)).CallDeferred();
+	}
+
+	private void ApplyShiftClick(GraphNode clicked, List<GraphNode> previouslySelected, bool wasSelected)
+	{
+		foreach (var node in previouslySelected.Where(IsInstanceValid))
+			node.Selected = true;
+		if (IsInstanceValid(clicked)) clicked.Selected = !wasSelected;
+	}
+
+	public override void _UnhandledKeyInput(InputEvent @event)
+	{
+		if (Engine.IsEditorHint() || !IsVisibleInTree()) return;
+		if (@event is InputEventKey { Pressed: true, Echo: false, Keycode: Key.G, CtrlPressed: true })
+		{
+			CollapseSelectionToSubGraph();
+			GetViewport().SetInputAsHandled();
+		}
+	}
+
+	public SubGraphNode LoadSubGraph(string name, Vector2 position)
+	{
+		var data = GraphIO.Load(GraphIO.SubGraphDir, name);
+		if (data == null)
+		{
+			Dialogs.ShowMessage(this, "Load SubGraph", $"Couldn't read SubGraph '{name}'.");
+			return null;
+		}
+		// Every load builds fresh nodes, so copies are independent
+		var subGraph = (SubGraphNode)AddNode(SubGraphType, position);
+		subGraph.Load(data);
+		return subGraph;
+	}
+
+	public GradientNode LoadGradientPreset(string name, Vector2 position)
+	{
+		var data = GraphIO.Load(GraphIO.GradientDir, name);
+		if (data == null)
+		{
+			Dialogs.ShowMessage(this, "Load Gradient", $"Couldn't read gradient preset '{name}'.");
+			return null;
+		}
+		var gradient = (GradientNode)AddPrimitive("Gradient", position);
+		gradient.Load(data);
+		return gradient;
+	}
+
+	// ---- Collapsing a selection into a SubGraph
+
+	private IEnumerable<GraphNode> GetCollapsibleSelection()
+	{
+		// The output bus has no type key, and a SubGraph's own Inputs/Outputs must stay put
+		return GetChildren().OfType<GraphNode>()
+			.Where(node => node.Selected && node.HasMeta(TypeMeta) && node is not InputsNode && node is not OutputsNode);
+	}
+
+	private readonly record struct Connection(StringName From, int FromPort, StringName To, int ToPort);
+
+	private List<Connection> GetConnections()
+	{
+		return GetConnectionList().Select(c => new Connection(
+			(StringName)c["from_node"], (int)c["from_port"], (StringName)c["to_node"], (int)c["to_port"])).ToList();
+	}
+
+	private static string PortLabel(GraphNode node, int port, bool input)
+	{
+		string nodeLabel = string.IsNullOrEmpty(node.Title)
+			? ((string)node.GetMeta(TypeMeta, node.Name.ToString())).Split('/').Last()
+			: node.Title;
+		// Use the row's label (e.g. a shader parameter name) when there is one
+		int slot = input ? node.GetInputPortSlot(port) : node.GetOutputPortSlot(port);
+		var row = node.GetChildren().OfType<Control>().ElementAtOrDefault(slot);
+		var label = row == null ? null : (row as Label ?? row.FindChildren("*", "Label", true, false).OfType<Label>().FirstOrDefault());
+		return label == null || string.IsNullOrEmpty(label.Text) ? nodeLabel : $"{nodeLabel}: {label.Text}";
+	}
+
+	/// <summary>
+	/// Unselected nodes that sit on a path leaving the selection and coming back into it.
+	/// Collapsing would make the SubGraph feed itself through them.
+	/// </summary>
+	private List<GraphNode> FindNodesBreakingInOut(HashSet<StringName> inSelection, List<Connection> connections)
+	{
+		HashSet<StringName> Reach(IEnumerable<StringName> start, bool downstream)
+		{
+			var found = new HashSet<StringName>();
+			var stack = new Stack<StringName>(start);
+			while (stack.Count > 0)
+			{
+				var name = stack.Pop();
+				if (inSelection.Contains(name) || !found.Add(name)) continue;
+				foreach (var c in connections)
+				{
+					if (downstream && c.From == name) stack.Push(c.To);
+					if (!downstream && c.To == name) stack.Push(c.From);
+				}
+			}
+			return found;
+		}
+		var fedBySelection = Reach(connections.Where(c => inSelection.Contains(c.From)).Select(c => c.To), downstream: true);
+		var feedsSelection = Reach(connections.Where(c => inSelection.Contains(c.To)).Select(c => c.From), downstream: false);
+		fedBySelection.IntersectWith(feedsSelection);
+		return GetChildren().OfType<GraphNode>().Where(node => fedBySelection.Contains(node.Name)).ToList();
+	}
+
+	private string DisplayName(GraphNode node)
+	{
+		string title = string.IsNullOrEmpty(node.Title)
+			? ((string)node.GetMeta(TypeMeta, node.Name.ToString())).Split('/').Last()
+			: node.Title;
+		// Several nodes can share a title (e.g. five BwGrids), so add a number to tell them apart
+		var sameTitle = GetChildren().OfType<GraphNode>().Where(other => other.Title == node.Title).ToList();
+		return sameTitle.Count > 1 ? $"{title} #{sameTitle.IndexOf(node) + 1}" : title;
+	}
+
+	private static void FlashWarning(GraphNode node)
+	{
+		node.Modulate = new Color(1.0f, 0.4f, 0.4f);
+		var tween = node.CreateTween();
+		tween.TweenInterval(2.0);
+		tween.TweenProperty(node, "modulate", Colors.White, 1.0);
+	}
+
+	/// <summary>
+	/// Move the selected nodes into a new SubGraph node. Connections crossing the edge of the
+	/// selection become the SubGraph's ports. Returns null if nothing was collapsed.
+	/// </summary>
+	public SubGraphNode CollapseSelectionToSubGraph()
+	{
+		var selected = GetCollapsibleSelection().ToList();
+		if (selected.Count == 0) return null;
+		var inSelection = new HashSet<StringName>(selected.Select(node => node.Name));
+		var connections = GetConnections();
+
+		var problems = FindNodesBreakingInOut(inSelection, connections);
+		if (problems.Count > 0)
+		{
+			foreach (var node in problems) FlashWarning(node);
+			string list = string.Join("\n", problems.Select(node => "  • " + DisplayName(node)));
+			Dialogs.ShowMessage(this, "Collapse to SubGraph",
+				"Can't collapse: these nodes (highlighted in red) are fed by the selection and also feed back into it, " +
+				"so the SubGraph wouldn't have a clear inputs → outputs direction:\n\n" + list +
+				"\n\nAdd them to the selection, or leave out the selected nodes on one side of them.");
+			return null;
+		}
+
+		var incoming = connections.Where(c => !inSelection.Contains(c.From) && inSelection.Contains(c.To)).ToList();
+		var outgoing = connections.Where(c => inSelection.Contains(c.From) && !inSelection.Contains(c.To)).ToList();
+		var inside = connections.Where(c => inSelection.Contains(c.From) && inSelection.Contains(c.To)).ToList();
+
+		// One port per outside source (fanning out inside) and per inside source (fanning out outside)
+		var inputSources = incoming.Select(c => (c.From, c.FromPort)).Distinct().ToList();
+		var outputSources = outgoing.Select(c => (c.From, c.FromPort)).Distinct().ToList();
+		var inputPorts = inputSources.Select(source =>
+		{
+			var first = incoming.First(c => (c.From, c.FromPort) == source);
+			var target = GetNode<GraphNode>((string)first.To);
+			return new SubGraphPort { Type = (SlotType)target.GetInputPortType(first.ToPort), Label = PortLabel(target, first.ToPort, true) };
+		}).ToList();
+		var outputPorts = outputSources.Select(source =>
+		{
+			var node = GetNode<GraphNode>((string)source.From);
+			return new SubGraphPort { Type = (SlotType)node.GetOutputPortType(source.FromPort), Label = PortLabel(node, source.FromPort, false) };
+		}).ToList();
+
+		foreach (var c in incoming.Concat(outgoing).Concat(inside))
+			DisconnectNode(c.From, c.FromPort, c.To, c.ToPort);
+
+		Vector2 min = new Vector2(selected.Min(n => n.PositionOffset.X), selected.Min(n => n.PositionOffset.Y));
+		float width = selected.Max(n => n.PositionOffset.X + n.Size.X) - min.X;
+		var subGraph = (SubGraphNode)CreateNode(SubGraphType);
+		AddChild(subGraph, true);
+		subGraph.PositionOffset = min;
+		subGraph.SetResolution(outputResolution);
+		subGraph.SetPorts(inputPorts, outputPorts);
+
+		// Move the live nodes (keeping all their state) into the inner graph
+		var inner = subGraph.InnerGraph;
+		var names = new System.Collections.Generic.Dictionary<StringName, StringName>();
+		Vector2 innerOrigin = new Vector2(500, 40); // right of the Inputs node
+		foreach (var node in selected)
+		{
+			node.Selected = false;
+			Vector2 position = node.PositionOffset - min + innerOrigin;
+			var oldName = node.Name;
+			RemoveChild(node);
+			inner.AddChild(node, true);
+			node.PositionOffset = position;
+			names[oldName] = node.Name;
+		}
+		subGraph.Outputs.PositionOffset = new Vector2(innerOrigin.X + width + 80, innerOrigin.Y);
+
+		foreach (var c in inside)
+			inner.ConnectNode(names[c.From], c.FromPort, names[c.To], c.ToPort);
+		for (int i = 0; i < inputSources.Count; i++)
+		{
+			ConnectNode(inputSources[i].From, inputSources[i].FromPort, subGraph.Name, i);
+			foreach (var c in incoming.Where(c => (c.From, c.FromPort) == inputSources[i]))
+				inner.ConnectNode(subGraph.Inputs.Name, i, names[c.To], c.ToPort);
+		}
+		for (int i = 0; i < outputSources.Count; i++)
+		{
+			inner.ConnectNode(names[outputSources[i].From], outputSources[i].FromPort, subGraph.Outputs.Name, i);
+			foreach (var c in outgoing.Where(c => (c.From, c.FromPort) == outputSources[i]))
+				ConnectNode(subGraph.Name, i, c.To, c.ToPort);
+		}
+		inner.ReorderNodesByConnections();
+		ReorderNodesByConnections();
+		subGraph.Selected = true;
+		return subGraph;
+	}
+
+	// ---- Saving and loading graph contents
+
+	public Godot.Collections.Dictionary SerializeGraph()
+	{
+		var nodes = new Godot.Collections.Array();
+		var saved = new HashSet<StringName>();
+		foreach (var node in GetChildren().OfType<GraphNode>().Where(n => n.HasMeta(TypeMeta)))
+		{
+			var entry = new Godot.Collections.Dictionary
+			{
+				["type"] = (string)node.GetMeta(TypeMeta),
+				["name"] = node.Name.ToString(),
+				["position"] = GraphIO.ToArray(node.PositionOffset),
+			};
+			if (node is ISerializableNode serializable) entry["data"] = serializable.Save();
+			nodes.Add(entry);
+			saved.Add(node.Name);
+		}
+		var connections = new Godot.Collections.Array();
+		foreach (var c in GetConnections().Where(c => saved.Contains(c.From) && saved.Contains(c.To)))
+		{
+			connections.Add(new Godot.Collections.Dictionary
+			{
+				["from"] = c.From.ToString(), ["from_port"] = c.FromPort,
+				["to"] = c.To.ToString(), ["to_port"] = c.ToPort,
+			});
+		}
+		return new Godot.Collections.Dictionary { ["nodes"] = nodes, ["connections"] = connections };
+	}
+
+	public void LoadGraph(Godot.Collections.Dictionary graph)
+	{
+		var names = new System.Collections.Generic.Dictionary<string, StringName>();
+		foreach (Godot.Collections.Dictionary entry in (Godot.Collections.Array)graph["nodes"])
+		{
+			string type = (string)entry["type"];
+			GraphNode node;
+			// A SubGraph's Inputs/Outputs nodes already exist; just restore their position
+			if (type == InputsType) node = GetChildren().OfType<InputsNode>().FirstOrDefault();
+			else if (type == OutputsType) node = GetChildren().OfType<OutputsNode>().FirstOrDefault();
+			else
+			{
+				node = CreateNode(type);
+				if (node == null) continue;
+				node.Name = (string)entry["name"];
+				AddChild(node, true);
+				(node as IResolutionDependent)?.SetResolution(outputResolution);
+			}
+			if (node == null) continue;
+			node.PositionOffset = GraphIO.ToVector2(entry["position"]);
+			if (entry.ContainsKey("data") && node is ISerializableNode serializable)
+				serializable.Load((Godot.Collections.Dictionary)entry["data"]);
+			names[(string)entry["name"]] = node.Name;
+		}
+		foreach (Godot.Collections.Dictionary c in (Godot.Collections.Array)graph["connections"])
+		{
+			if (names.TryGetValue((string)c["from"], out var from) && names.TryGetValue((string)c["to"], out var to))
+				ConnectNode(from, (int)c["from_port"], to, (int)c["to_port"]);
+		}
+		ReorderNodesByConnections();
+	}
 
     private bool IsOverlapping(GraphNode node, Vector2 testPos)
     {

@@ -2,7 +2,7 @@ using Godot;
 using System;
 using System.Linq;
 
-public partial class GradientNode : GraphNode, IGraphNode
+public partial class GradientNode : GraphNode, IGraphNode, ISerializableNode
 {
     [Export] public Gradient gradient;
     [Export] public GradientTexture2D gradientTexture;
@@ -29,6 +29,7 @@ public partial class GradientNode : GraphNode, IGraphNode
         }
         AddColor();
         AddColor();
+        GetNode<LineEdit>("GradientPreviewHBox/LineEdit").Text = bands.ToString();
         SetSlotEnabledRight(0, true);
         SetSlotTypeRight(0, (int)SlotType.Texture);
     }
@@ -104,6 +105,34 @@ public partial class GradientNode : GraphNode, IGraphNode
         colorHBoxes = GetChildren().OfType<GradientColorHBox>().ToArray();
         colorHBoxes[^1].downButton.Disabled = true;
         colorHBoxes[0].upButton.Disabled = true;
+        UpdateGradient();
+    }
+
+    public void OnSavePresetPressed()
+    {
+        Dialogs.SaveNamed(this, "Save Gradient Preset", GraphIO.GradientDir, "Gradient", Save);
+    }
+
+    public Godot.Collections.Dictionary Save()
+    {
+        var colors = new Godot.Collections.Array();
+        foreach (var hbox in colorHBoxes) colors.Add(GraphIO.ToArray(hbox.colorPicker.Color));
+        return new Godot.Collections.Dictionary { ["colors"] = colors, ["bands"] = bands };
+    }
+
+    public void Load(Godot.Collections.Dictionary data)
+    {
+        var colors = (Godot.Collections.Array)data["colors"];
+        if (colors.Count == 0) return;
+        while (colorHBoxes.Length < colors.Count) AddColor();
+        while (colorHBoxes.Length > colors.Count) DeleteColor(colorHBoxes[^1]);
+        for (int i = 0; i < colors.Count; i++)
+        {
+            // Setting Color from code doesn't emit ColorChanged, so UpdateGradient is called below
+            colorHBoxes[i].colorPicker.Color = GraphIO.ToColor(colors[i]);
+        }
+        bands = Math.Max(1, (int)data["bands"]);
+        GetNode<LineEdit>("GradientPreviewHBox/LineEdit").Text = bands.ToString();
         UpdateGradient();
     }
 

@@ -154,6 +154,13 @@ public partial class Controller : Control
 
 
 
+		// Breadcrumb bar for stepping in and out of SubGraphs, along the bottom-left edge
+		var navigator = new GraphNavigator { Name = "GraphNavigator" };
+		AddChild(navigator);
+		navigator.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomLeft, LayoutPresetMode.KeepSize, 8);
+		navigator.GrowVertical = GrowDirection.Begin;
+		navigator.Init(GetNode<VisualsGraphEdit>(GraphEditPath));
+
 		GetNode<VisualsGraphEdit>(GraphEditPath).CreateVisualBus();
 		GetNode<VisualsGraphEdit>(GraphEditPath).spectrum = GetNode<Spectrum>(SpectrumPath);
 		// Initialize fields with the selected monitor's resolution and size the graph to match

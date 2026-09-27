@@ -29,3 +29,13 @@ public interface IResolutionDependent
 {
 	void SetResolution(Vector2I resolution);
 }
+
+/// <summary>
+/// Implemented by graph nodes whose settings are saved with a SubGraph or preset.
+/// Save returns JSON-safe data; Load is called after the node has entered the tree.
+/// </summary>
+public interface ISerializableNode
+{
+	Godot.Collections.Dictionary Save();
+	void Load(Godot.Collections.Dictionary data);
+}
