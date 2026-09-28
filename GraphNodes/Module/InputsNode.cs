@@ -17,8 +17,14 @@ public partial class InputsNode : GraphNode, IGraphNode
 
 	public void Rebuild(List<ModulePort> ports)
 	{
-		ModulePortRows.Rebuild(this, ports, rightSide: true, onRangeEdited: (index, min, max, step) =>
-			Module != null && Module.SetPortRange(index, min, max, step));
+		ModulePortRows.Rebuild(this, ports, rightSide: true, new ModulePortRows.Editing
+		{
+			OnRange = (index, min, max, step) => Module != null && Module.SetPortRange(index, min, max, step),
+			OnRename = (index, label) => Module != null && Module.RenamePort(true, index, label),
+			OnDelete = index => Module?.RemoveInputPort(index),
+			OnAdd = type => Module?.AddInputPort(type),
+			AddText = "+ Add Input",
+		});
 	}
 
 	Variant IGraphNode.GetOutputData(int outputSlot) => Module?.GetInputValue(outputSlot) ?? default;
@@ -30,8 +36,21 @@ public partial class InputsNode : GraphNode, IGraphNode
 
 internal static class ModulePortRows
 {
-	public static void Rebuild(GraphNode node, List<ModulePort> ports, bool rightSide,
-		Func<int, float, float, float, bool> onRangeEdited = null)
+	/// <summary>What the rows can change on the module (all optional).</summary>
+	public class Editing
+	{
+		public Func<int, float, float, float, bool> OnRange;
+		public Func<int, string, bool> OnRename;
+		public Action<int> OnDelete;
+		public Action<SlotType> OnAdd;
+		public string AddText = "+ Add";
+	}
+
+	/// <summary>
+	/// One row per port (child N carries slot N), then an "add" menu that has no slot.
+	/// Inputs show their slot on the right, outputs on the left.
+	/// </summary>
+	public static void Rebuild(GraphNode node, List<ModulePort> ports, bool rightSide, Editing editing)
 	{
 		while (node.GetChildCount() > 0)
 		{
@@ -40,22 +59,9 @@ internal static class ModulePortRows
 			child.QueueFree();
 		}
 		node.ClearAllSlots();
-		if (ports.Count == 0)
-		{
-			node.AddChild(new Label { Text = "(none)" });
-			return;
-		}
 		for (int i = 0; i < ports.Count; i++)
 		{
-			var label = new Label
-			{
-				Text = ports[i].Label,
-				HorizontalAlignment = rightSide ? HorizontalAlignment.Right : HorizontalAlignment.Left,
-			};
-			if (onRangeEdited != null && ports[i].IsNumeric)
-				node.AddChild(RangeRow(label, ports[i], i, onRangeEdited));
-			else
-				node.AddChild(label);
+			node.AddChild(PortRow(ports[i], i, rightSide, editing));
 			if (rightSide)
 			{
 				node.SetSlotEnabledRight(i, true);
@@ -67,13 +73,48 @@ internal static class ModulePortRows
 				node.SetSlotTypeLeft(i, (int)ports[i].Type);
 			}
 		}
+		node.AddChild(AddMenu(editing));
 	}
 
-	/// <summary>"Label  [min] – [max]  step [step]" for annotating a numeric input.</summary>
-	private static HBoxContainer RangeRow(Label label, ModulePort port, int index, Func<int, float, float, float, bool> onRangeEdited)
+	private static MenuButton AddMenu(Editing editing)
+	{
+		var menu = new MenuButton { Text = editing.AddText, Flat = false, TooltipText = "Add a port" };
+		var popup = menu.GetPopup();
+		foreach (var type in ModuleNode.AddablePortTypes) popup.AddItem(type.ToString(), (int)type);
+		popup.IdPressed += id => editing.OnAdd?.Invoke((SlotType)(int)id);
+		return menu;
+	}
+
+	/// <summary>"[✕] [name] [min] – [max] step [step]" (range fields only for numeric inputs).</summary>
+	private static HBoxContainer PortRow(ModulePort port, int index, bool isInputsNode, Editing editing)
 	{
 		var row = new HBoxContainer();
-		label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+		var delete = new Button { Text = "✕", Flat = true, TooltipText = $"Delete this {(isInputsNode ? "input" : "output")} (and its wires)" };
+		delete.Pressed += () => editing.OnDelete?.Invoke(index);
+		var nameEdit = new LineEdit
+		{
+			Text = port.Label,
+			TooltipText = $"{port.Type} {(isInputsNode ? "input" : "output")} name",
+			CustomMinimumSize = new Vector2(130, 0),
+			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+			Alignment = isInputsNode ? HorizontalAlignment.Right : HorizontalAlignment.Left,
+		};
+		void CommitName()
+		{
+			if (nameEdit.Text.Trim() == port.Label) return;
+			if (editing.OnRename == null || !editing.OnRename(index, nameEdit.Text)) nameEdit.Text = port.Label;
+		}
+		nameEdit.TextSubmitted += _ => CommitName();
+		nameEdit.FocusExited += CommitName;
+
+		row.AddChild(delete);
+		row.AddChild(nameEdit);
+		if (isInputsNode && port.IsNumeric && editing.OnRange != null) AddRangeFields(row, port, index, editing.OnRange);
+		return row;
+	}
+
+	private static void AddRangeFields(HBoxContainer row, ModulePort port, int index, Func<int, float, float, float, bool> onRangeEdited)
+	{
 		LineEdit Field(string tooltip) => new LineEdit
 		{
 			TooltipText = tooltip,
@@ -105,12 +146,10 @@ internal static class ModulePortRows
 			field.FocusExited += Commit;
 		}
 		Show();
-		row.AddChild(label);
 		row.AddChild(minField);
 		row.AddChild(new Label { Text = "–" });
 		row.AddChild(maxField);
 		row.AddChild(new Label { Text = "step" });
 		row.AddChild(stepField);
-		return row;
 	}
 }

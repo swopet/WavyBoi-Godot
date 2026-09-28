@@ -329,9 +329,30 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 	// GraphEdit toggles selection with Ctrl-click, but a Shift-click clears the rest of the
 	// selection. Remember the selection before the click and restore it afterwards so
 	// Shift-click adds the node (or removes it if it was already selected).
+	// Godot's GraphEdit pans while Space is held, but only clears that when an internal layer
+	// that never takes focus loses focus. If the Space release goes elsewhere (a text field,
+	// a dialog, the control panel, or stepping into a module hides this graph) panning sticks:
+	// clicking an output port then starts a wire AND drags the canvas. Clear it ourselves.
+	private void ReleaseStuckPanKey()
+	{
+		if (Input.IsKeyPressed(Key.Space) || Input.IsPhysicalKeyPressed(Key.Space)) return;
+		foreach (var child in GetChildren(true).OfType<Control>())
+		{
+			// The internal layer wired to the panner's release_pan_key
+			if (child.GetSignalConnectionList(Control.SignalName.FocusExited).Count > 0 && child.MouseFilter == MouseFilterEnum.Ignore)
+				child.EmitSignal(Control.SignalName.FocusExited);
+		}
+	}
+
+	public override void _Notification(int what)
+	{
+		if (what == NotificationFocusExit || what == NotificationVisibilityChanged) ReleaseStuckPanKey();
+	}
+
 	public override void _Input(InputEvent @event)
 	{
 		if (Engine.IsEditorHint() || !IsVisibleInTree()) return;
+		if (@event is InputEventMouseButton { Pressed: true }) ReleaseStuckPanKey();
 		if (@event is not InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true, ShiftPressed: true, CtrlPressed: false } click) return;
 		var clicked = GetChildren().OfType<GraphNode>()
 			// Full transform (not GetGlobalRect) so the hit test respects the graph's zoom
@@ -703,6 +724,31 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 	{
 		if (Engine.IsEditorHint()) return;
 		PropagateDataThroughGraph();
+	}
+
+	/// <summary>
+	/// A port was removed from a node: drop its connections (clearing the inputs they fed)
+	/// and move connections on later ports down by one so they stay on the same port.
+	/// </summary>
+	public void RemovePortConnections(StringName node, int port, bool isInput)
+	{
+		var affected = GetConnections()
+			.Where(c => isInput ? c.To == node && c.ToPort >= port : c.From == node && c.FromPort >= port)
+			.ToList();
+		// Disconnect everything first so shifted connections can't collide with ones not yet moved
+		foreach (var c in affected) DisconnectNode(c.From, c.FromPort, c.To, c.ToPort);
+		foreach (var c in affected)
+		{
+			int p = isInput ? c.ToPort : c.FromPort;
+			if (p == port)
+			{
+				if (!isInput) (GetNodeOrNull((string)c.To) as IGraphNode)?.SetInputData(c.ToPort, default);
+				continue;
+			}
+			if (isInput) ConnectNode(c.From, c.FromPort, c.To, c.ToPort - 1);
+			else ConnectNode(c.From, c.FromPort - 1, c.To, c.ToPort);
+		}
+		ReorderNodesByConnections();
 	}
 
 	private void OnInputSlotDelete(StringName toNode, int index)
