@@ -56,6 +56,19 @@ public partial class BwSpiral : ShaderNode
         base._Ready();
     }
 
+    public override Godot.Collections.Dictionary Save()
+    {
+        var data = base.Save();
+        data["rotation_speed"] = rotationSpeed;
+        return data;
+    }
+
+    public override void Load(Godot.Collections.Dictionary data)
+    {
+        base.Load(data);
+        if (data.ContainsKey("rotation_speed")) rotationSpeed = (float)data["rotation_speed"];
+    }
+
     public override void _Process(double delta)
     {
         if (!rotationDegreesParameter.Updated){

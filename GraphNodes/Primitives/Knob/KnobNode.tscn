@@ -1,0 +1,7 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://GraphNodes/Primitives/Knob/KnobNode.cs" id="1_knob"]
+
+[node name="KnobNode" type="GraphNode"]
+title = "Knob"
+script = ExtResource("1_knob")

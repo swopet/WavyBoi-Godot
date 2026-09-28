@@ -18,7 +18,7 @@ public class Parameter
 }
 
 [Tool]
-public partial class ShaderNode : GraphNode, IGraphNode
+public partial class ShaderNode : GraphNode, IGraphNode, IResolutionDependent, ISerializableNode
 {
 	private NodePath _previewPanelPath;
 	[Export] public NodePath PreviewPanelPath
@@ -53,7 +53,20 @@ public partial class ShaderNode : GraphNode, IGraphNode
 
 	private void OnShaderChanged()
 	{
+		// The setter runs during scene instantiation, before the preview panel exists; _Ready handles that case
+		if (!IsNodeReady()) return;
 		UpdateShaderMaterial();
+	}
+
+	private SubViewport GetPreviewSubViewport()
+	{
+		return GetNode<PanelContainer>(PreviewPanelPath).GetChild(0).GetChild(0) as SubViewport;
+	}
+
+	public void SetResolution(Vector2I resolution)
+	{
+		GetPreviewSubViewport().Size = resolution;
+		_shaderMaterial?.SetShaderParameter("viewport_size", resolution);
 	}
 
 	private void OnShowHideButtonToggled(bool state)
@@ -70,7 +83,7 @@ public partial class ShaderNode : GraphNode, IGraphNode
 		var colorRect = GetNode<PanelContainer>(PreviewPanelPath).GetChild(0).GetChild(0).GetChild(0) as ColorRect;
 		colorRect.Material = _shaderMaterial;
 		if (_shaderMaterial.Shader == null) return;
-		_shaderMaterial?.SetShaderParameter("viewport_size", (GetNode<PanelContainer>(PreviewPanelPath).GetChild(0).GetChild(0) as SubViewport).Size);
+		_shaderMaterial.SetShaderParameter("viewport_size", GetPreviewSubViewport().Size);
 	}
 
 	private void UpdateParameterSlots()
@@ -78,7 +91,9 @@ public partial class ShaderNode : GraphNode, IGraphNode
 		if (Parameters == null) return;
 		while (GetChildCount() > 1) // Remove existing slots, keep the first child which is the preview panel
 		{
-			GetChild(1).QueueFree();
+			var child = GetChild(1);
+			RemoveChild(child); // QueueFree alone doesn't change the child count, so this loop would never end
+			child.QueueFree();
 		}
 		SetSlotEnabledRight(0, true);
 		SetSlotTypeRight(0, (int)SlotType.Texture); // Set the preview panel slot to be a texture slot
@@ -93,6 +108,10 @@ public partial class ShaderNode : GraphNode, IGraphNode
 			SetSlotTypeLeft(i+1, (int)param.Type);
 		}
 	}
+
+	/// <summary>Current value of the parameter on an input port (Nil if unset).</summary>
+	public Variant GetParameterValue(int inputPort) =>
+		Parameters != null && inputPort >= 0 && inputPort < Parameters.Length ? Parameters[inputPort].Value : default;
 
 	public Parameter[] GetParameters()
 	{
@@ -138,11 +157,53 @@ public partial class ShaderNode : GraphNode, IGraphNode
 		}
 	}
 
+	public virtual Godot.Collections.Dictionary Save()
+	{
+		// Textures come from connections, so only the directly-set values are saved
+		var values = new Godot.Collections.Dictionary();
+		foreach (var param in Parameters)
+		{
+			if (param.Value.VariantType == Variant.Type.Nil) continue;
+			switch (param.Type)
+			{
+				case SlotType.Integer: values[param.Name] = (int)param.Value; break;
+				case SlotType.Float: values[param.Name] = (float)param.Value; break;
+				case SlotType.Color: values[param.Name] = GraphIO.ToArray((Color)param.Value); break;
+			}
+		}
+		return new Godot.Collections.Dictionary
+		{
+			["parameters"] = values,
+			["preview_visible"] = (GetNode<PanelContainer>(PreviewPanelPath).GetChild(0) as TextureRect).Visible,
+		};
+	}
+
+	public virtual void Load(Godot.Collections.Dictionary data)
+	{
+		var values = (Godot.Collections.Dictionary)data["parameters"];
+		foreach (var param in Parameters)
+		{
+			if (!values.ContainsKey(param.Name)) continue;
+			switch (param.Type)
+			{
+				case SlotType.Integer: param.Value = (int)values[param.Name]; break;
+				case SlotType.Float: param.Value = (float)values[param.Name]; break;
+				case SlotType.Color: param.Value = GraphIO.ToColor(values[param.Name]); break;
+			}
+		}
+		if (data.ContainsKey("preview_visible"))
+		{
+			bool visible = (bool)data["preview_visible"];
+			GetNode<PanelContainer>(PreviewPanelPath).GetNode<CheckButton>("ShowHideButton").ButtonPressed = visible;
+			OnShowHideButtonToggled(visible);
+		}
+	}
+
     Variant IGraphNode.GetOutputData(int outputSlot)
     {
         if (outputSlot == 0)
 		{
-			return (GetNode<PanelContainer>(PreviewPanelPath).GetChild(0).GetChild(0) as SubViewport).GetTexture();
+			return GetPreviewSubViewport().GetTexture();
 		}
 		return default;
     }

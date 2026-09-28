@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://cyp68g83f5o3d"]
 
-[ext_resource type="Script" uid="uid://bdmqvpljwstqp" path="res://GraphNodes/Primitives/Integer/Integer.cs" id="1_6jlo6"]
+[ext_resource type="Script" uid="uid://bdmqvpljwstqp" path="res://GraphNodes/Primitives/Integer/IntegerNode.cs" id="1_6jlo6"]
 
 [node name="IntegerNode" type="GraphNode" unique_id=526328542 node_paths=PackedStringArray("lineEdit")]
 offset_right = 9.0

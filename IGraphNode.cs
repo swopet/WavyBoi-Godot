@@ -21,3 +21,21 @@ public interface IGraphNode
 	/// <param name="data">The data received from the connected node</param>
 	void SetInputData(int inputSlot, Variant data);
 }
+
+/// <summary>
+/// Implemented by graph nodes that render into a SubViewport and need to match the output resolution.
+/// </summary>
+public interface IResolutionDependent
+{
+	void SetResolution(Vector2I resolution);
+}
+
+/// <summary>
+/// Implemented by graph nodes whose settings are saved with a Module or preset.
+/// Save returns JSON-safe data; Load is called after the node has entered the tree.
+/// </summary>
+public interface ISerializableNode
+{
+	Godot.Collections.Dictionary Save();
+	void Load(Godot.Collections.Dictionary data);
+}
