@@ -465,6 +465,8 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 			}
 			return found;
 		}
+		// Wires out of a Frame Buffer are one-frame feedback, which a module may be part of
+		connections = connections.Where(c => !IsFrameBuffer(c.From)).ToList();
 		var fedBySelection = Reach(connections.Where(c => inSelection.Contains(c.From)).Select(c => c.To), downstream: true);
 		var feedsSelection = Reach(connections.Where(c => inSelection.Contains(c.To)).Select(c => c.From), downstream: false);
 		fedBySelection.IntersectWith(feedsSelection);
@@ -824,10 +826,17 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 		ReorderNodesByConnections();
 	}
 
+	/// <summary>
+	/// A Frame Buffer's output is last frame's input, so wires out of one don't make this frame
+	/// depend on anything: loops through a buffer are allowed feedback, not cycles.
+	/// </summary>
+	private bool IsFrameBuffer(StringName node) => GetNodeOrNull((string)node) is FrameBufferNode;
+
 	private bool WouldCreateCycle(StringName fromNode, StringName toNode)
 	{
-		// A cycle exists if fromNode is already reachable downstream of toNode
-		var connections = GetConnectionList();
+		if (IsFrameBuffer(fromNode)) return false;
+		// A cycle exists if fromNode is already reachable downstream of toNode (not through a buffer)
+		var connections = GetConnectionList().Where(c => !IsFrameBuffer((StringName)c["from_node"])).ToList();
 		var visited = new HashSet<StringName>();
 		var stack = new Stack<StringName>();
 		stack.Push(toNode);
@@ -872,6 +881,7 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
             string from = (string)conn["from_node"];
             string to = (string)conn["to_node"];
             if (!adjacency.ContainsKey(from) || !inDegree.ContainsKey(to)) continue;
+            if (IsFrameBuffer(from)) continue; // feedback, not a dependency
 
             adjacency[from].Add(to);
             inDegree[to]++;

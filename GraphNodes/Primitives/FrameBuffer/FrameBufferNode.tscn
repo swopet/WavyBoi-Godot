@@ -1,0 +1,7 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://GraphNodes/Primitives/FrameBuffer/FrameBufferNode.cs" id="1_fbuf"]
+
+[node name="FrameBufferNode" type="GraphNode"]
+title = "Frame Buffer"
+script = ExtResource("1_fbuf")
