@@ -50,8 +50,6 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 	private const string PrimitivePrefix = "Primitive/";
 	private const string ShaderPrefix = "Shader/";
 
-	// Only the main graph starts with the demo nodes
-	public bool SpawnDefaultNodes = true;
 	public GraphNavigator Navigator;
 
 	/// <summary>The main graph of the project this graph belongs to.</summary>
@@ -97,27 +95,6 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 		DisconnectionRequest += OnDisconnectionRequest;
 		PopupRequest += OnPopupRequest;
 		DeleteNodesRequest += OnDeleteNodesRequest;
-		if (!SpawnDefaultNodes) return;
-
-		for (int i = 0; i < 2; i++)
-		{
-			AddPrimitive("Float");
-		}
-		AddPrimitive("Gradient");
-
-		for (int i = 0; i < 5; i++)
-		{
-			AddShader("BwGrid");
-		}
-		AddShader("BwGradient");
-		for (int i = 0; i < 2; i++)
-		{
-			AddShader("GaussianBlur");
-		}
-		for(int i = 0; i < 2; i++)
-		{
-			AddShader("BwSpiral");
-		}
 	}
 
 	public GraphNode AddPrimitive(string primitiveName, Vector2 position = default)
@@ -177,7 +154,6 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 	{
 		var graph = new VisualsGraphEdit
 		{
-			SpawnDefaultNodes = false,
 			Navigator = Navigator,
 			Host = Host,
 			Visible = false,
