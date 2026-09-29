@@ -19,6 +19,7 @@
 [ext_resource type="PackedScene" path="res://GraphNodes/Shaders/Rhombi/Rhombi.tscn" id="14_rhombi"]
 [ext_resource type="PackedScene" path="res://GraphNodes/Shaders/SpiralRhombi/SpiralRhombi.tscn" id="15_spiralrhombi"]
 [ext_resource type="PackedScene" path="res://GraphNodes/Shaders/SquareCircles/SquareCircles.tscn" id="16_squarecircles"]
+[ext_resource type="PackedScene" path="res://GraphNodes/Shaders/HexDither/HexDither.tscn" id="17_hexdither"]
 
 [resource]
 script = ExtResource("1_2enai")
@@ -41,7 +42,8 @@ Shaders = Dictionary[String, PackedScene]({
 "SquareGrayscale": ExtResource("13_squaregrayscale"),
 "Rhombi": ExtResource("14_rhombi"),
 "SpiralRhombi": ExtResource("15_spiralrhombi"),
-"SquareCircles": ExtResource("16_squarecircles")
+"SquareCircles": ExtResource("16_squarecircles"),
+"HexDither": ExtResource("17_hexdither")
 })
 VisualBus = ExtResource("6_m1t5t")
 metadata/_custom_type_script = "uid://mypf6o30ugla"
