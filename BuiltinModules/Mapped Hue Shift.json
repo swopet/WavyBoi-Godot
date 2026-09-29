@@ -1,0 +1,104 @@
+{
+	"data": {
+		"graph": {
+			"connections": [
+				{
+					"from": "Inputs",
+					"from_port": 0,
+					"to": "MappedHueShift",
+					"to_port": 0
+				},
+				{
+					"from": "Inputs",
+					"from_port": 1,
+					"to": "MappedHueShift",
+					"to_port": 1
+				},
+				{
+					"from": "Inputs",
+					"from_port": 2,
+					"to": "MappedHueShift",
+					"to_port": 2
+				},
+				{
+					"from": "Inputs",
+					"from_port": 3,
+					"to": "MappedHueShift",
+					"to_port": 3
+				},
+				{
+					"from": "MappedHueShift",
+					"from_port": 0,
+					"to": "Outputs",
+					"to_port": 0
+				}
+			],
+			"nodes": [
+				{
+					"name": "Inputs",
+					"position": [
+						220.0,
+						40.0
+					],
+					"type": "ModuleInputs"
+				},
+				{
+					"data": {
+						"parameters": {
+							"Amount": 1.0,
+							"Offset": 0.0
+						},
+						"preview_visible": true
+					},
+					"name": "MappedHueShift",
+					"position": [
+						1000.0,
+						40.0
+					],
+					"type": "Shader/MappedHueShift"
+				},
+				{
+					"name": "Outputs",
+					"position": [
+						1400.0,
+						40.0
+					],
+					"type": "ModuleOutputs"
+				}
+			]
+		},
+		"inputs": [
+			{
+				"label": "Source",
+				"type": 2
+			},
+			{
+				"label": "Hue Map",
+				"type": 2
+			},
+			{
+				"label": "Amount",
+				"max": 2.0,
+				"min": 0.0,
+				"step": 0.009999999776482582,
+				"type": 1
+			},
+			{
+				"label": "Offset (deg)",
+				"max": 360.0,
+				"min": 0.0,
+				"step": 1.0,
+				"type": 1
+			}
+		],
+		"name": "Mapped Hue Shift",
+		"outputs": [
+			{
+				"label": "Output",
+				"type": 2
+			}
+		]
+	},
+	"name": "Mapped Hue Shift",
+	"version": 1
+}
