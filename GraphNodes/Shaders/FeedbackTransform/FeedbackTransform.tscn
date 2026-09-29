@@ -1,0 +1,22 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" uid="uid://cpk3wxyfoqd2x" path="res://ShaderNode.tscn" id="1_fbt"]
+[ext_resource type="Script" path="res://GraphNodes/Shaders/FeedbackTransform/FeedbackTransform.cs" id="2_fbt"]
+[ext_resource type="Shader" path="res://GraphNodes/Shaders/FeedbackTransform/FeedbackTransform.gdshader" id="3_fbt"]
+
+[sub_resource type="ViewportTexture" id="ViewportTexture_fbt"]
+viewport_path = NodePath("PreviewPanel/TextureRect/SubViewport")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fbt"]
+shader = ExtResource("3_fbt")
+
+[node name="FeedbackTransform" unique_id=421901113 instance=ExtResource("1_fbt")]
+title = "FeedbackTransform"
+script = ExtResource("2_fbt")
+Shader = ExtResource("3_fbt")
+
+[node name="TextureRect" parent="PreviewPanel" parent_id_path=PackedInt32Array(1591826366) index="0" unique_id=548394888]
+texture = SubResource("ViewportTexture_fbt")
+
+[node name="ColorRect" parent="PreviewPanel/TextureRect/SubViewport" parent_id_path=PackedInt32Array(1429090857) index="0" unique_id=1479984965]
+material = SubResource("ShaderMaterial_fbt")

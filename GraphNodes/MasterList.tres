@@ -11,6 +11,7 @@
 [ext_resource type="PackedScene" uid="uid://bqahxr2ivotug" path="res://GraphNodes/VisualBus/VisualBusNode.tscn" id="6_m1t5t"]
 [ext_resource type="PackedScene" path="res://GraphNodes/Primitives/Knob/KnobNode.tscn" id="7_knob"]
 [ext_resource type="PackedScene" path="res://GraphNodes/Primitives/FrameBuffer/FrameBufferNode.tscn" id="8_fbuf"]
+[ext_resource type="PackedScene" path="res://GraphNodes/Shaders/FeedbackTransform/FeedbackTransform.tscn" id="9_fbt"]
 
 [resource]
 script = ExtResource("1_2enai")
@@ -25,6 +26,7 @@ Shaders = Dictionary[String, PackedScene]({
 "BwGradient": ExtResource("5_jx1wh"),
 "BwGrid": ExtResource("3_57jsp"),
 "BwSpiral": ExtResource("6_8ix78"),
+"FeedbackTransform": ExtResource("9_fbt"),
 "GaussianBlur": ExtResource("4_fk33g")
 })
 VisualBus = ExtResource("6_m1t5t")
