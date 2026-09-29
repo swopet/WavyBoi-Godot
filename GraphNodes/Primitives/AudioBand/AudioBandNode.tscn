@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://GraphNodes/Primitives/AudioBand/AudioBandNode.cs" id="1_AudioBand"]
+
+[node name="AudioBandNode" type="GraphNode"]
+script = ExtResource("1_AudioBand")

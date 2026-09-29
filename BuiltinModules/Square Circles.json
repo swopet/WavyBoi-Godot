@@ -1,0 +1,131 @@
+{
+	"data": {
+		"graph": {
+			"connections": [
+				{
+					"from": "Inputs",
+					"from_port": 0,
+					"to": "SquareCircles",
+					"to_port": 0
+				},
+				{
+					"from": "Inputs",
+					"from_port": 1,
+					"to": "SquareCircles",
+					"to_port": 2
+				},
+				{
+					"from": "Inputs",
+					"from_port": 2,
+					"to": "SquareCircles",
+					"to_port": 3
+				},
+				{
+					"from": "Inputs",
+					"from_port": 3,
+					"to": "SquareCircles",
+					"to_port": 4
+				},
+				{
+					"from": "SquareCircles",
+					"from_port": 0,
+					"to": "Outputs",
+					"to_port": 0
+				},
+				{
+					"from": "SquareCircles",
+					"from_port": 0,
+					"to": "FrameBufferNode",
+					"to_port": 0
+				},
+				{
+					"from": "FrameBufferNode",
+					"from_port": 0,
+					"to": "SquareCircles",
+					"to_port": 1
+				}
+			],
+			"nodes": [
+				{
+					"name": "Inputs",
+					"position": [
+						220.0,
+						40.0
+					],
+					"type": "ModuleInputs"
+				},
+				{
+					"data": {
+						"parameters": {
+							"Bass": 0.0,
+							"Speed": 1.0,
+							"Time": 0.0
+						},
+						"preview_visible": true
+					},
+					"name": "SquareCircles",
+					"position": [
+						1000.0,
+						40.0
+					],
+					"type": "Shader/SquareCircles"
+				},
+				{
+					"name": "Outputs",
+					"position": [
+						1400.0,
+						40.0
+					],
+					"type": "ModuleOutputs"
+				},
+				{
+					"data": {
+						"hold": false
+					},
+					"name": "FrameBufferNode",
+					"position": [
+						1000.0,
+						700.0
+					],
+					"type": "Primitive/Frame Buffer"
+				}
+			]
+		},
+		"inputs": [
+			{
+				"label": "Mask",
+				"type": 2
+			},
+			{
+				"label": "Time (s)",
+				"max": 100000.0,
+				"min": 0.0,
+				"step": 0.009999999776482582,
+				"type": 1
+			},
+			{
+				"label": "Speed",
+				"max": 4.0,
+				"min": 0.0,
+				"step": 0.009999999776482582,
+				"type": 1
+			},
+			{
+				"label": "Bass",
+				"max": 1.0,
+				"min": 0.0,
+				"step": 0.009999999776482582,
+				"type": 1
+			}
+		],
+		"name": "Square Circles",
+		"outputs": [
+			{
+				"label": "Output",
+				"type": 2
+			}
+		]
+	},
+	"name": "Square Circles",
+	"version": 1
+}

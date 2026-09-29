@@ -1,0 +1,22 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" uid="uid://cpk3wxyfoqd2x" path="res://ShaderNode.tscn" id="1_square"]
+[ext_resource type="Script" path="res://GraphNodes/Shaders/SquareGrayscale/SquareGrayscale.cs" id="2_square"]
+[ext_resource type="Shader" path="res://GraphNodes/Shaders/SquareGrayscale/SquareGrayscale.gdshader" id="3_square"]
+
+[sub_resource type="ViewportTexture" id="ViewportTexture_square"]
+viewport_path = NodePath("PreviewPanel/TextureRect/SubViewport")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_square"]
+shader = ExtResource("3_square")
+
+[node name="SquareGrayscale" unique_id=421901113 instance=ExtResource("1_square")]
+title = "SquareGrayscale"
+script = ExtResource("2_square")
+Shader = ExtResource("3_square")
+
+[node name="TextureRect" parent="PreviewPanel" parent_id_path=PackedInt32Array(1591826366) index="0" unique_id=548394888]
+texture = SubResource("ViewportTexture_square")
+
+[node name="ColorRect" parent="PreviewPanel/TextureRect/SubViewport" parent_id_path=PackedInt32Array(1429090857) index="0" unique_id=1479984965]
+material = SubResource("ShaderMaterial_square")
