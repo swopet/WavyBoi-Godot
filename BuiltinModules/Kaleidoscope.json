@@ -1,0 +1,178 @@
+{
+	"data": {
+		"graph": {
+			"connections": [
+				{
+					"from": "Inputs",
+					"from_port": 0,
+					"to": "Kaleidoscope",
+					"to_port": 0
+				},
+				{
+					"from": "Inputs",
+					"from_port": 1,
+					"to": "Kaleidoscope",
+					"to_port": 1
+				},
+				{
+					"from": "Inputs",
+					"from_port": 2,
+					"to": "Kaleidoscope",
+					"to_port": 2
+				},
+				{
+					"from": "Inputs",
+					"from_port": 3,
+					"to": "Kaleidoscope",
+					"to_port": 3
+				},
+				{
+					"from": "Inputs",
+					"from_port": 4,
+					"to": "Kaleidoscope",
+					"to_port": 4
+				},
+				{
+					"from": "Inputs",
+					"from_port": 5,
+					"to": "Kaleidoscope",
+					"to_port": 5
+				},
+				{
+					"from": "Inputs",
+					"from_port": 6,
+					"to": "Kaleidoscope",
+					"to_port": 6
+				},
+				{
+					"from": "Inputs",
+					"from_port": 7,
+					"to": "Kaleidoscope",
+					"to_port": 7
+				},
+				{
+					"from": "Inputs",
+					"from_port": 8,
+					"to": "Kaleidoscope",
+					"to_port": 8
+				},
+				{
+					"from": "Kaleidoscope",
+					"from_port": 0,
+					"to": "Outputs",
+					"to_port": 0
+				}
+			],
+			"nodes": [
+				{
+					"name": "Inputs",
+					"position": [
+						220.0,
+						40.0
+					],
+					"type": "ModuleInputs"
+				},
+				{
+					"data": {
+						"parameters": {
+							"Circle Mode (0 off, 1 on)": 0,
+							"Offset Center X": 0.5,
+							"Offset Center Y": 0.5,
+							"Reflections": 4.0,
+							"Rotation (radians)": 0.0,
+							"Sample Center X": 0.5,
+							"Sample Center Y": 0.5,
+							"Zoom": 1.0
+						},
+						"preview_visible": true
+					},
+					"name": "Kaleidoscope",
+					"position": [
+						1000.0,
+						40.0
+					],
+					"type": "Shader/Kaleidoscope"
+				},
+				{
+					"name": "Outputs",
+					"position": [
+						1400.0,
+						40.0
+					],
+					"type": "ModuleOutputs"
+				}
+			]
+		},
+		"inputs": [
+			{
+				"label": "Input",
+				"type": 2
+			},
+			{
+				"label": "Zoom",
+				"max": 4.0,
+				"min": 0.10000000149011612,
+				"step": 0.009999999776482582,
+				"type": 1
+			},
+			{
+				"label": "Reflections",
+				"max": 16.0,
+				"min": 1.0,
+				"step": 1.0,
+				"type": 1
+			},
+			{
+				"label": "Rotation (radians)",
+				"max": 3.1415998935699463,
+				"min": -3.1415998935699463,
+				"step": 0.009999999776482582,
+				"type": 1
+			},
+			{
+				"label": "Sample Center X",
+				"max": 1.0,
+				"min": 0.0,
+				"step": 0.009999999776482582,
+				"type": 1
+			},
+			{
+				"label": "Sample Center Y",
+				"max": 1.0,
+				"min": 0.0,
+				"step": 0.009999999776482582,
+				"type": 1
+			},
+			{
+				"label": "Offset Center X",
+				"max": 1.0,
+				"min": 0.0,
+				"step": 0.009999999776482582,
+				"type": 1
+			},
+			{
+				"label": "Offset Center Y",
+				"max": 1.0,
+				"min": 0.0,
+				"step": 0.009999999776482582,
+				"type": 1
+			},
+			{
+				"label": "Circle Mode",
+				"max": 1.0,
+				"min": 0.0,
+				"step": 1.0,
+				"type": 0
+			}
+		],
+		"name": "Kaleidoscope",
+		"outputs": [
+			{
+				"label": "Output",
+				"type": 2
+			}
+		]
+	},
+	"name": "Kaleidoscope",
+	"version": 1
+}

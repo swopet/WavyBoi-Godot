@@ -286,6 +286,8 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 		AddAction(modules, "New Empty Module", () => AddNode(ModuleType, spawnPosition));
 		AddAction(modules, "Collapse Selection to Module   (Ctrl+G)", () => CollapseSelectionToModule(),
 			disabled: !GetCollapsibleSelection().Any());
+		modules.AddSeparator("Built-in");
+		AddList(modules, GraphIO.List(GraphIO.BuiltinModuleDir), name => LoadModule(name, spawnPosition, builtin: true));
 		modules.AddSeparator("Saved");
 		AddList(modules, GraphIO.List(GraphIO.ModuleDir), name => LoadModule(name, spawnPosition));
 
@@ -381,9 +383,9 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 		}
 	}
 
-	public ModuleNode LoadModule(string name, Vector2 position)
+	public ModuleNode LoadModule(string name, Vector2 position, bool builtin = false)
 	{
-		var data = GraphIO.Load(GraphIO.ModuleDir, name);
+		var data = GraphIO.Load(builtin ? GraphIO.BuiltinModuleDir : GraphIO.ModuleDir, name);
 		if (data == null)
 		{
 			Dialogs.ShowMessage(this, "Load Module", $"Couldn't read Module '{name}'.");
