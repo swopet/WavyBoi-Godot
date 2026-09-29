@@ -91,6 +91,10 @@ public partial class ModuleNode : GraphNode, IGraphNode, IResolutionDependent, I
 	private Variant[] inputValues = [];
 	private Variant[] outputValues = [];
 	private readonly List<Label> inputLabels = new();
+	private readonly List<Label> outputLabels = new();
+
+	/// <summary>Port types that can be added from the Inputs/Outputs nodes.</summary>
+	public static readonly SlotType[] AddablePortTypes = [SlotType.Float, SlotType.Integer, SlotType.Texture];
 
 	// Nodes moved in by a collapse, to space clear of the Inputs node once it's laid out
 	public List<GraphNode> PendingClearOfInputs;
@@ -212,6 +216,7 @@ public partial class ModuleNode : GraphNode, IGraphNode, IResolutionDependent, I
 		}
 		ClearAllSlots();
 		inputLabels.Clear();
+		outputLabels.Clear();
 		int rows = Math.Max(InputPorts.Count, OutputPorts.Count);
 		for (int i = 0; i < rows; i++)
 		{
@@ -219,12 +224,9 @@ public partial class ModuleNode : GraphNode, IGraphNode, IResolutionDependent, I
 			var inputLabel = new Label { SizeFlagsHorizontal = SizeFlags.ExpandFill };
 			row.AddChild(inputLabel);
 			if (i < InputPorts.Count) inputLabels.Add(inputLabel);
-			row.AddChild(new Label
-			{
-				Text = i < OutputPorts.Count ? OutputPorts[i].Label : "",
-				HorizontalAlignment = HorizontalAlignment.Right,
-				SizeFlagsHorizontal = SizeFlags.ExpandFill,
-			});
+			var outputLabel = new Label { HorizontalAlignment = HorizontalAlignment.Right, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+			row.AddChild(outputLabel);
+			if (i < OutputPorts.Count) outputLabels.Add(outputLabel);
 			AddChild(row);
 			int slot = i + 1;
 			if (i < InputPorts.Count)
@@ -238,18 +240,75 @@ public partial class ModuleNode : GraphNode, IGraphNode, IResolutionDependent, I
 				SetSlotTypeRight(slot, (int)OutputPorts[i].Type);
 			}
 		}
-		UpdateInputLabels();
+		UpdateLabels();
 		Inputs?.Rebuild(InputPorts);
 		Outputs?.Rebuild(OutputPorts);
 	}
 
-	private void UpdateInputLabels()
+	private void UpdateLabels()
 	{
 		for (int i = 0; i < inputLabels.Count; i++)
 		{
 			var port = InputPorts[i];
 			inputLabels[i].Text = port.IsNumeric ? $"{port.Label} {port.RangeText}" : port.Label;
 		}
+		for (int i = 0; i < outputLabels.Count; i++) outputLabels[i].Text = OutputPorts[i].Label;
+	}
+
+	// ---- Editing ports from inside the module (Inputs/Outputs nodes)
+
+	private static string UniqueLabel(List<ModulePort> ports, string baseName)
+	{
+		string name = baseName;
+		for (int n = 2; ports.Any(p => p.Label == name); n++) name = $"{baseName} {n}";
+		return name;
+	}
+
+	public void AddInputPort(SlotType type)
+	{
+		InputPorts.Add(ModulePort.Create(type, UniqueLabel(InputPorts, type.ToString())));
+		System.Array.Resize(ref inputValues, InputPorts.Count);
+		RebuildPorts();
+	}
+
+	public void AddOutputPort(SlotType type)
+	{
+		OutputPorts.Add(ModulePort.Create(type, UniqueLabel(OutputPorts, type.ToString())));
+		System.Array.Resize(ref outputValues, OutputPorts.Count);
+		RebuildPorts();
+	}
+
+	/// <summary>Remove an input; its wires (outside and inside) go, later inputs keep theirs.</summary>
+	public void RemoveInputPort(int index)
+	{
+		if (index < 0 || index >= InputPorts.Count) return;
+		ParentGraph?.RemovePortConnections(Name, index, isInput: true);
+		InnerGraph.RemovePortConnections(Inputs.Name, index, isInput: false);
+		InputPorts.RemoveAt(index);
+		inputValues = inputValues.Where((_, i) => i != index).ToArray();
+		RebuildPorts();
+	}
+
+	/// <summary>Remove an output; its wires (outside and inside) go, later outputs keep theirs.</summary>
+	public void RemoveOutputPort(int index)
+	{
+		if (index < 0 || index >= OutputPorts.Count) return;
+		ParentGraph?.RemovePortConnections(Name, index, isInput: false);
+		InnerGraph.RemovePortConnections(Outputs.Name, index, isInput: true);
+		OutputPorts.RemoveAt(index);
+		outputValues = outputValues.Where((_, i) => i != index).ToArray();
+		RebuildPorts();
+	}
+
+	/// <summary>Rename an input or output; empty names are refused.</summary>
+	public bool RenamePort(bool input, int index, string label)
+	{
+		var ports = input ? InputPorts : OutputPorts;
+		label = label.Trim();
+		if (index < 0 || index >= ports.Count || label == "") return false;
+		ports[index].Label = label;
+		UpdateLabels(); // the Inputs/Outputs field already shows the new name
+		return true;
 	}
 
 	/// <summary>Set a numeric input's allowed range and step (from the Inputs node's fields).</summary>
@@ -257,7 +316,7 @@ public partial class ModuleNode : GraphNode, IGraphNode, IResolutionDependent, I
 	{
 		if (index < 0 || index >= InputPorts.Count || !InputPorts[index].IsNumeric) return false;
 		if (!InputPorts[index].TrySetRange(min, max, step)) return false;
-		UpdateInputLabels();
+		UpdateLabels();
 		return true;
 	}
 

@@ -44,6 +44,11 @@ public partial class ShaderNode : GraphNode, IGraphNode, IResolutionDependent, I
 		set => _parameters = value;
 	}
 	protected ShaderMaterial _shaderMaterial = null;
+
+	// Optional clock for animated shaders: AutoTime advances by delta x AutoTimeSpeed each frame
+	// unless something is wired into it (e.g. a Time node), in which case the wire wins.
+	protected Parameter AutoTime;
+	protected Parameter AutoTimeSpeed;
 	// Called when the node enters the scene tree for the first time.
 	public override void _Ready()
 	{
@@ -122,6 +127,11 @@ public partial class ShaderNode : GraphNode, IGraphNode, IResolutionDependent, I
 	public override void _Process(double delta)
 	{
 		if (Engine.IsEditorHint()) return; // Don't update shader parameters in the editor, only at runtime
+		if (AutoTime != null && !AutoTime.Updated)
+		{
+			float speed = AutoTimeSpeed?.Value.VariantType == Variant.Type.Float ? (float)AutoTimeSpeed.Value : 1.0f;
+			AutoTime.Value = (float)AutoTime.Value + (float)delta * speed;
+		}
 		if (_shaderMaterial != null && Parameters != null)
 		{
 			

@@ -10,20 +10,40 @@
 [ext_resource type="PackedScene" uid="uid://bcr52w1fyfsyj" path="res://GraphNodes/Shaders/BwSpiral/BwSpiral.tscn" id="6_8ix78"]
 [ext_resource type="PackedScene" uid="uid://bqahxr2ivotug" path="res://GraphNodes/VisualBus/VisualBusNode.tscn" id="6_m1t5t"]
 [ext_resource type="PackedScene" path="res://GraphNodes/Primitives/Knob/KnobNode.tscn" id="7_knob"]
+[ext_resource type="PackedScene" path="res://GraphNodes/Primitives/FrameBuffer/FrameBufferNode.tscn" id="8_fbuf"]
+[ext_resource type="PackedScene" path="res://GraphNodes/Shaders/FeedbackTransform/FeedbackTransform.tscn" id="9_fbt"]
+[ext_resource type="PackedScene" path="res://GraphNodes/Shaders/Kaleidoscope/Kaleidoscope.tscn" id="10_kal"]
+[ext_resource type="PackedScene" path="res://GraphNodes/Primitives/Time/TimeNode.tscn" id="11_time"]
+[ext_resource type="PackedScene" path="res://GraphNodes/Primitives/AudioBand/AudioBandNode.tscn" id="12_band"]
+[ext_resource type="PackedScene" path="res://GraphNodes/Shaders/SquareGrayscale/SquareGrayscale.tscn" id="13_squaregrayscale"]
+[ext_resource type="PackedScene" path="res://GraphNodes/Shaders/Rhombi/Rhombi.tscn" id="14_rhombi"]
+[ext_resource type="PackedScene" path="res://GraphNodes/Shaders/SpiralRhombi/SpiralRhombi.tscn" id="15_spiralrhombi"]
+[ext_resource type="PackedScene" path="res://GraphNodes/Shaders/SquareCircles/SquareCircles.tscn" id="16_squarecircles"]
+[ext_resource type="PackedScene" path="res://GraphNodes/Shaders/HexDither/HexDither.tscn" id="17_hexdither"]
 
 [resource]
 script = ExtResource("1_2enai")
 Primitives = Dictionary[String, PackedScene]({
+"Audio Band": ExtResource("12_band"),
 "Float": ExtResource("1_1r6ht"),
+"Frame Buffer": ExtResource("8_fbuf"),
 "Gradient": ExtResource("2_8ix78"),
 "Integer": ExtResource("3_fk33g"),
-"Knob": ExtResource("7_knob")
+"Knob": ExtResource("7_knob"),
+"Time": ExtResource("11_time")
 })
 Shaders = Dictionary[String, PackedScene]({
 "BwGradient": ExtResource("5_jx1wh"),
 "BwGrid": ExtResource("3_57jsp"),
 "BwSpiral": ExtResource("6_8ix78"),
-"GaussianBlur": ExtResource("4_fk33g")
+"FeedbackTransform": ExtResource("9_fbt"),
+"GaussianBlur": ExtResource("4_fk33g"),
+"Kaleidoscope": ExtResource("10_kal"),
+"SquareGrayscale": ExtResource("13_squaregrayscale"),
+"Rhombi": ExtResource("14_rhombi"),
+"SpiralRhombi": ExtResource("15_spiralrhombi"),
+"SquareCircles": ExtResource("16_squarecircles"),
+"HexDither": ExtResource("17_hexdither")
 })
 VisualBus = ExtResource("6_m1t5t")
 metadata/_custom_type_script = "uid://mypf6o30ugla"

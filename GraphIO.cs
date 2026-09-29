@@ -8,6 +8,8 @@ using System.Linq;
 public static class GraphIO
 {
 	public const string ModuleDir = "user://modules";
+	// Modules that ship with the project (read-only)
+	public const string BuiltinModuleDir = "res://BuiltinModules";
 	public const string GradientDir = "user://gradients";
 	public const string ProjectDir = "user://projects";
 	private const int FormatVersion = 1;

@@ -1,0 +1,22 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" uid="uid://cpk3wxyfoqd2x" path="res://ShaderNode.tscn" id="1_rhombi"]
+[ext_resource type="Script" path="res://GraphNodes/Shaders/Rhombi/Rhombi.cs" id="2_rhombi"]
+[ext_resource type="Shader" path="res://GraphNodes/Shaders/Rhombi/Rhombi.gdshader" id="3_rhombi"]
+
+[sub_resource type="ViewportTexture" id="ViewportTexture_rhombi"]
+viewport_path = NodePath("PreviewPanel/TextureRect/SubViewport")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_rhombi"]
+shader = ExtResource("3_rhombi")
+
+[node name="Rhombi" unique_id=421901113 instance=ExtResource("1_rhombi")]
+title = "Rhombi"
+script = ExtResource("2_rhombi")
+Shader = ExtResource("3_rhombi")
+
+[node name="TextureRect" parent="PreviewPanel" parent_id_path=PackedInt32Array(1591826366) index="0" unique_id=548394888]
+texture = SubResource("ViewportTexture_rhombi")
+
+[node name="ColorRect" parent="PreviewPanel/TextureRect/SubViewport" parent_id_path=PackedInt32Array(1429090857) index="0" unique_id=1479984965]
+material = SubResource("ShaderMaterial_rhombi")

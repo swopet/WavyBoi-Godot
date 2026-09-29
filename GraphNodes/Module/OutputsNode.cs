@@ -15,7 +15,13 @@ public partial class OutputsNode : GraphNode, IGraphNode
 
 	public void Rebuild(List<ModulePort> ports)
 	{
-		ModulePortRows.Rebuild(this, ports, rightSide: false);
+		ModulePortRows.Rebuild(this, ports, rightSide: false, new ModulePortRows.Editing
+		{
+			OnRename = (index, label) => Module != null && Module.RenamePort(false, index, label),
+			OnDelete = index => Module?.RemoveOutputPort(index),
+			OnAdd = type => Module?.AddOutputPort(type),
+			AddText = "+ Add Output",
+		});
 	}
 
 	Variant IGraphNode.GetOutputData(int outputSlot) => default;

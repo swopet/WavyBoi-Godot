@@ -1,0 +1,261 @@
+{
+	"data": {
+		"graph": {
+			"connections": [
+				{
+					"from": "GaussianBlur",
+					"from_port": 0,
+					"to": "GaussianBlur2",
+					"to_port": 0
+				},
+				{
+					"from": "GaussianBlur2",
+					"from_port": 0,
+					"to": "HexDither",
+					"to_port": 0
+				},
+				{
+					"from": "Inputs",
+					"from_port": 0,
+					"to": "GaussianBlur",
+					"to_port": 0
+				},
+				{
+					"from": "Inputs",
+					"from_port": 0,
+					"to": "HexDither",
+					"to_port": 1
+				},
+				{
+					"from": "Inputs",
+					"from_port": 1,
+					"to": "GaussianBlur",
+					"to_port": 1
+				},
+				{
+					"from": "Inputs",
+					"from_port": 1,
+					"to": "GaussianBlur2",
+					"to_port": 1
+				},
+				{
+					"from": "Inputs",
+					"from_port": 2,
+					"to": "HexDither",
+					"to_port": 2
+				},
+				{
+					"from": "Inputs",
+					"from_port": 3,
+					"to": "HexDither",
+					"to_port": 3
+				},
+				{
+					"from": "Inputs",
+					"from_port": 4,
+					"to": "HexDither",
+					"to_port": 4
+				},
+				{
+					"from": "Inputs",
+					"from_port": 5,
+					"to": "HexDither",
+					"to_port": 5
+				},
+				{
+					"from": "Inputs",
+					"from_port": 6,
+					"to": "HexDither",
+					"to_port": 6
+				},
+				{
+					"from": "Inputs",
+					"from_port": 7,
+					"to": "HexDither",
+					"to_port": 7
+				},
+				{
+					"from": "Inputs",
+					"from_port": 8,
+					"to": "HexDither",
+					"to_port": 8
+				},
+				{
+					"from": "Inputs",
+					"from_port": 9,
+					"to": "HexDither",
+					"to_port": 9
+				},
+				{
+					"from": "Inputs",
+					"from_port": 10,
+					"to": "HexDither",
+					"to_port": 10
+				},
+				{
+					"from": "HexDither",
+					"from_port": 0,
+					"to": "Outputs",
+					"to_port": 0
+				}
+			],
+			"nodes": [
+				{
+					"name": "Inputs",
+					"position": [
+						220.0,
+						40.0
+					],
+					"type": "ModuleInputs"
+				},
+				{
+					"data": {
+						"parameters": {
+							"Blur Radius": 5.0,
+							"X Step": 1.0,
+							"Y Step": 0.0
+						},
+						"preview_visible": true
+					},
+					"name": "GaussianBlur",
+					"position": [
+						700.0,
+						40.0
+					],
+					"type": "Shader/GaussianBlur"
+				},
+				{
+					"data": {
+						"parameters": {
+							"Blur Radius": 5.0,
+							"X Step": 0.0,
+							"Y Step": 1.0
+						},
+						"preview_visible": true
+					},
+					"name": "GaussianBlur2",
+					"position": [
+						1000.0,
+						40.0
+					],
+					"type": "Shader/GaussianBlur"
+				},
+				{
+					"data": {
+						"parameters": {
+							"Color 0": 3,
+							"Color 1": 0,
+							"Control": 1,
+							"Gamma": 1.0,
+							"Invert": 1,
+							"Line Fade": 12.0,
+							"Line Width": 2.0,
+							"Min Size": 6.0,
+							"Steps": 6
+						},
+						"preview_visible": true
+					},
+					"name": "HexDither",
+					"position": [
+						1300.0,
+						40.0
+					],
+					"type": "Shader/HexDither"
+				},
+				{
+					"name": "Outputs",
+					"position": [
+						1700.0,
+						40.0
+					],
+					"type": "ModuleOutputs"
+				}
+			]
+		},
+		"inputs": [
+			{
+				"label": "Image",
+				"type": 2
+			},
+			{
+				"label": "Blur Radius",
+				"max": 30.0,
+				"min": 0.0,
+				"step": 0.10000000149011612,
+				"type": 1
+			},
+			{
+				"label": "Min Size",
+				"max": 40.0,
+				"min": 1.0,
+				"step": 0.10000000149011612,
+				"type": 1
+			},
+			{
+				"label": "Steps",
+				"max": 12.0,
+				"min": 1.0,
+				"step": 1.0,
+				"type": 0
+			},
+			{
+				"label": "Line Width",
+				"max": 20.0,
+				"min": 0.0,
+				"step": 0.10000000149011612,
+				"type": 1
+			},
+			{
+				"label": "Line Fade",
+				"max": 40.0,
+				"min": 0.0,
+				"step": 0.10000000149011612,
+				"type": 1
+			},
+			{
+				"label": "Gamma",
+				"max": 4.0,
+				"min": 0.10000000149011612,
+				"step": 0.009999999776482582,
+				"type": 1
+			},
+			{
+				"label": "Color 0",
+				"max": 3.0,
+				"min": 0.0,
+				"step": 1.0,
+				"type": 0
+			},
+			{
+				"label": "Color 1",
+				"max": 3.0,
+				"min": 0.0,
+				"step": 1.0,
+				"type": 0
+			},
+			{
+				"label": "Control",
+				"max": 1.0,
+				"min": 0.0,
+				"step": 1.0,
+				"type": 0
+			},
+			{
+				"label": "Invert",
+				"max": 1.0,
+				"min": 0.0,
+				"step": 1.0,
+				"type": 0
+			}
+		],
+		"name": "Hex Dither",
+		"outputs": [
+			{
+				"label": "Output",
+				"type": 2
+			}
+		]
+	},
+	"name": "Hex Dither",
+	"version": 1
+}

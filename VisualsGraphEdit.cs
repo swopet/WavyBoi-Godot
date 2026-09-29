@@ -286,6 +286,8 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 		AddAction(modules, "New Empty Module", () => AddNode(ModuleType, spawnPosition));
 		AddAction(modules, "Collapse Selection to Module   (Ctrl+G)", () => CollapseSelectionToModule(),
 			disabled: !GetCollapsibleSelection().Any());
+		modules.AddSeparator("Built-in");
+		AddList(modules, GraphIO.List(GraphIO.BuiltinModuleDir), name => LoadModule(name, spawnPosition, builtin: true));
 		modules.AddSeparator("Saved");
 		AddList(modules, GraphIO.List(GraphIO.ModuleDir), name => LoadModule(name, spawnPosition));
 
@@ -329,9 +331,30 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 	// GraphEdit toggles selection with Ctrl-click, but a Shift-click clears the rest of the
 	// selection. Remember the selection before the click and restore it afterwards so
 	// Shift-click adds the node (or removes it if it was already selected).
+	// Godot's GraphEdit pans while Space is held, but only clears that when an internal layer
+	// that never takes focus loses focus. If the Space release goes elsewhere (a text field,
+	// a dialog, the control panel, or stepping into a module hides this graph) panning sticks:
+	// clicking an output port then starts a wire AND drags the canvas. Clear it ourselves.
+	private void ReleaseStuckPanKey()
+	{
+		if (Input.IsKeyPressed(Key.Space) || Input.IsPhysicalKeyPressed(Key.Space)) return;
+		foreach (var child in GetChildren(true).OfType<Control>())
+		{
+			// The internal layer wired to the panner's release_pan_key
+			if (child.GetSignalConnectionList(Control.SignalName.FocusExited).Count > 0 && child.MouseFilter == MouseFilterEnum.Ignore)
+				child.EmitSignal(Control.SignalName.FocusExited);
+		}
+	}
+
+	public override void _Notification(int what)
+	{
+		if (what == NotificationFocusExit || what == NotificationVisibilityChanged) ReleaseStuckPanKey();
+	}
+
 	public override void _Input(InputEvent @event)
 	{
 		if (Engine.IsEditorHint() || !IsVisibleInTree()) return;
+		if (@event is InputEventMouseButton { Pressed: true }) ReleaseStuckPanKey();
 		if (@event is not InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true, ShiftPressed: true, CtrlPressed: false } click) return;
 		var clicked = GetChildren().OfType<GraphNode>()
 			// Full transform (not GetGlobalRect) so the hit test respects the graph's zoom
@@ -360,9 +383,9 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 		}
 	}
 
-	public ModuleNode LoadModule(string name, Vector2 position)
+	public ModuleNode LoadModule(string name, Vector2 position, bool builtin = false)
 	{
-		var data = GraphIO.Load(GraphIO.ModuleDir, name);
+		var data = GraphIO.Load(builtin ? GraphIO.BuiltinModuleDir : GraphIO.ModuleDir, name);
 		if (data == null)
 		{
 			Dialogs.ShowMessage(this, "Load Module", $"Couldn't read Module '{name}'.");
@@ -444,6 +467,8 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 			}
 			return found;
 		}
+		// Wires out of a Frame Buffer are one-frame feedback, which a module may be part of
+		connections = connections.Where(c => !IsFrameBuffer(c.From)).ToList();
 		var fedBySelection = Reach(connections.Where(c => inSelection.Contains(c.From)).Select(c => c.To), downstream: true);
 		var feedsSelection = Reach(connections.Where(c => inSelection.Contains(c.To)).Select(c => c.From), downstream: false);
 		fedBySelection.IntersectWith(feedsSelection);
@@ -705,6 +730,31 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 		PropagateDataThroughGraph();
 	}
 
+	/// <summary>
+	/// A port was removed from a node: drop its connections (clearing the inputs they fed)
+	/// and move connections on later ports down by one so they stay on the same port.
+	/// </summary>
+	public void RemovePortConnections(StringName node, int port, bool isInput)
+	{
+		var affected = GetConnections()
+			.Where(c => isInput ? c.To == node && c.ToPort >= port : c.From == node && c.FromPort >= port)
+			.ToList();
+		// Disconnect everything first so shifted connections can't collide with ones not yet moved
+		foreach (var c in affected) DisconnectNode(c.From, c.FromPort, c.To, c.ToPort);
+		foreach (var c in affected)
+		{
+			int p = isInput ? c.ToPort : c.FromPort;
+			if (p == port)
+			{
+				if (!isInput) (GetNodeOrNull((string)c.To) as IGraphNode)?.SetInputData(c.ToPort, default);
+				continue;
+			}
+			if (isInput) ConnectNode(c.From, c.FromPort, c.To, c.ToPort - 1);
+			else ConnectNode(c.From, c.FromPort - 1, c.To, c.ToPort);
+		}
+		ReorderNodesByConnections();
+	}
+
 	private void OnInputSlotDelete(StringName toNode, int index)
 	{
 		var connections = GetConnectionList();
@@ -778,10 +828,17 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
 		ReorderNodesByConnections();
 	}
 
+	/// <summary>
+	/// A Frame Buffer's output is last frame's input, so wires out of one don't make this frame
+	/// depend on anything: loops through a buffer are allowed feedback, not cycles.
+	/// </summary>
+	private bool IsFrameBuffer(StringName node) => GetNodeOrNull((string)node) is FrameBufferNode;
+
 	private bool WouldCreateCycle(StringName fromNode, StringName toNode)
 	{
-		// A cycle exists if fromNode is already reachable downstream of toNode
-		var connections = GetConnectionList();
+		if (IsFrameBuffer(fromNode)) return false;
+		// A cycle exists if fromNode is already reachable downstream of toNode (not through a buffer)
+		var connections = GetConnectionList().Where(c => !IsFrameBuffer((StringName)c["from_node"])).ToList();
 		var visited = new HashSet<StringName>();
 		var stack = new Stack<StringName>();
 		stack.Push(toNode);
@@ -826,6 +883,7 @@ public partial class VisualsGraphEdit : Godot.GraphEdit
             string from = (string)conn["from_node"];
             string to = (string)conn["to_node"];
             if (!adjacency.ContainsKey(from) || !inDegree.ContainsKey(to)) continue;
+            if (IsFrameBuffer(from)) continue; // feedback, not a dependency
 
             adjacency[from].Add(to);
             inDegree[to]++;

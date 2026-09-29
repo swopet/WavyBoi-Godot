@@ -1,0 +1,146 @@
+{
+	"data": {
+		"graph": {
+			"connections": [
+				{
+					"from": "Inputs",
+					"from_port": 0,
+					"to": "SpiralRhombi",
+					"to_port": 0
+				},
+				{
+					"from": "Inputs",
+					"from_port": 1,
+					"to": "SpiralRhombi",
+					"to_port": 1
+				},
+				{
+					"from": "Inputs",
+					"from_port": 2,
+					"to": "SpiralRhombi",
+					"to_port": 2
+				},
+				{
+					"from": "Inputs",
+					"from_port": 3,
+					"to": "SpiralRhombi",
+					"to_port": 3
+				},
+				{
+					"from": "Inputs",
+					"from_port": 4,
+					"to": "SpiralRhombi",
+					"to_port": 4
+				},
+				{
+					"from": "Inputs",
+					"from_port": 5,
+					"to": "SpiralRhombi",
+					"to_port": 5
+				},
+				{
+					"from": "Inputs",
+					"from_port": 6,
+					"to": "SpiralRhombi",
+					"to_port": 6
+				},
+				{
+					"from": "SpiralRhombi",
+					"from_port": 0,
+					"to": "Outputs",
+					"to_port": 0
+				}
+			],
+			"nodes": [
+				{
+					"name": "Inputs",
+					"position": [
+						220.0,
+						40.0
+					],
+					"type": "ModuleInputs"
+				},
+				{
+					"data": {
+						"parameters": {
+							"A": 3,
+							"B": 5,
+							"Bass": 0.0,
+							"Speed": 1.0,
+							"Time": 0.0
+						},
+						"preview_visible": true
+					},
+					"name": "SpiralRhombi",
+					"position": [
+						1000.0,
+						40.0
+					],
+					"type": "Shader/SpiralRhombi"
+				},
+				{
+					"name": "Outputs",
+					"position": [
+						1400.0,
+						40.0
+					],
+					"type": "ModuleOutputs"
+				}
+			]
+		},
+		"inputs": [
+			{
+				"label": "Texture 0",
+				"type": 2
+			},
+			{
+				"label": "Texture 1",
+				"type": 2
+			},
+			{
+				"label": "Time (s)",
+				"max": 100000.0,
+				"min": 0.0,
+				"step": 0.009999999776482582,
+				"type": 1
+			},
+			{
+				"label": "Speed",
+				"max": 4.0,
+				"min": 0.0,
+				"step": 0.009999999776482582,
+				"type": 1
+			},
+			{
+				"label": "Bass",
+				"max": 1.0,
+				"min": 0.0,
+				"step": 0.009999999776482582,
+				"type": 1
+			},
+			{
+				"label": "A",
+				"max": 12.0,
+				"min": 1.0,
+				"step": 1.0,
+				"type": 0
+			},
+			{
+				"label": "B",
+				"max": 12.0,
+				"min": 1.0,
+				"step": 1.0,
+				"type": 0
+			}
+		],
+		"name": "Spiral Rhombi",
+		"outputs": [
+			{
+				"label": "Output",
+				"type": 2
+			}
+		]
+	},
+	"name": "Spiral Rhombi",
+	"version": 1
+}
